@@ -1,0 +1,13 @@
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+.env
+*.log
+dbdata.mv.db
+dbdata.trace.db
+
+.DS_Store
+.idea/
+.vscode/
+
+node_modules/
