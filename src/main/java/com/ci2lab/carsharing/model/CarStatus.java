@@ -1,7 +1,9 @@
 package com.ci2lab.carsharing.model;
 
 public enum CarStatus {
-    AVAILABLE,
-    IN_USE,
-    MAINTENANCE
+    LIBRE,
+    RESERVA_PENDIENTE,
+    RESERVA_CONFIRMADA,
+    COMPLETO,
+    EN_USO
 }

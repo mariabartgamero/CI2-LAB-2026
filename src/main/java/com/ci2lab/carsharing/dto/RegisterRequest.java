@@ -5,10 +5,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record RegisterRequest(
-        @NotBlank String name,
+        @NotBlank String nombre,
         @Email @NotBlank String email,
-        @NotBlank @Size(min = 6) String password,
-        Long companyId,
-        String companyName
+        @Size(min = 4) String password,
+        @NotBlank String dni,
+        @NotBlank String codigoEmpresa
 ) {
 }

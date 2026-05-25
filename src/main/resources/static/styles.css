@@ -1,0 +1,516 @@
+:root {
+    --ink: #101828;
+    --muted: #667085;
+    --bg: #eef4f8;
+    --panel: #ffffff;
+    --line: #d9e3ea;
+    --navy: #071a2f;
+    --cyan: #00a6d6;
+    --cyan-dark: #0089b3;
+    --lime: #b8e600;
+    --green: #16a35f;
+    --yellow: #f6c445;
+    --blue: #1683d8;
+    --red: #e34b4b;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+input,
+select {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 12px;
+    margin-top: 6px;
+    background: #ffffff;
+    color: var(--ink);
+}
+
+input:focus,
+select:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px rgb(0 166 214 / 15%);
+    outline: none;
+}
+
+label {
+    display: block;
+    color: #344054;
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.auth-view {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 410px;
+    align-items: center;
+    gap: 48px;
+    padding: 32px;
+    background:
+        linear-gradient(120deg, rgb(7 26 47 / 96%), rgb(7 26 47 / 72)),
+        url("https://images.unsplash.com/photo-1511527844068-006b95d162c2?auto=format&fit=crop&w=1800&q=80") center / cover;
+}
+
+.auth-copy {
+    max-width: 780px;
+    color: #ffffff;
+}
+
+.auth-copy h1 {
+    font-size: clamp(44px, 7vw, 82px);
+    line-height: 0.95;
+    margin: 14px 0 18px;
+    letter-spacing: 0;
+}
+
+.auth-copy p {
+    max-width: 620px;
+    color: rgb(255 255 255 / 78%);
+    font-size: 20px;
+}
+
+.eyebrow {
+    margin: 0 0 8px;
+    color: var(--lime);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.auth-card {
+    width: 100%;
+    background: rgb(255 255 255 / 96%);
+    border: 1px solid rgb(255 255 255 / 60%);
+    border-radius: 8px;
+    padding: 22px;
+    box-shadow: 0 24px 80px rgb(0 0 0 / 30%);
+    backdrop-filter: blur(10px);
+}
+
+.tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.tab {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 10px;
+    font-weight: 850;
+}
+
+.tab.active {
+    background: var(--navy);
+    color: #ffffff;
+    border-color: var(--navy);
+}
+
+.auth-form,
+.reservation-form {
+    display: grid;
+    gap: 13px;
+}
+
+.button {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-weight: 850;
+}
+
+.primary {
+    background: var(--cyan);
+    color: #ffffff;
+}
+
+.primary:hover {
+    background: var(--cyan-dark);
+}
+
+.secondary {
+    background: #ffffff;
+    border-color: var(--line);
+    color: var(--ink);
+}
+
+.ghost {
+    border: 0;
+    background: transparent;
+    color: var(--cyan-dark);
+    cursor: pointer;
+    font-weight: 850;
+}
+
+.hint,
+.message {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.message.error {
+    color: var(--red);
+}
+
+.message.success {
+    color: var(--green);
+}
+
+.app-view {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 370px minmax(0, 1fr);
+    background: #dfeaf0;
+}
+
+.sidebar {
+    position: relative;
+    z-index: 600;
+    overflow: auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: #ffffff;
+    border-right: 1px solid var(--line);
+    box-shadow: 12px 0 34px rgb(16 24 40 / 14%);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 6px;
+}
+
+.brand strong {
+    display: block;
+    font-size: 18px;
+}
+
+.brand small,
+.profile p,
+.reservation-card p,
+.map-toolbar span {
+    color: var(--muted);
+}
+
+.logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: var(--navy);
+    color: var(--lime);
+    font-weight: 950;
+}
+
+.profile,
+.reservation-form,
+.reservations-panel,
+.legend {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    background: #fbfdff;
+}
+
+.profile {
+    background:
+        linear-gradient(135deg, rgb(0 166 214 / 14%), rgb(184 230 0 / 18%)),
+        #ffffff;
+}
+
+.profile h2 {
+    margin: 0 0 4px;
+    font-size: 22px;
+}
+
+.points {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.points span {
+    color: var(--navy);
+    font-size: 38px;
+    font-weight: 950;
+}
+
+.legend {
+    display: grid;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    box-shadow: 0 0 0 4px rgb(16 24 40 / 6%);
+}
+
+.free {
+    background: var(--green);
+}
+
+.pending {
+    background: var(--yellow);
+}
+
+.confirmed {
+    background: var(--blue);
+}
+
+.blocked {
+    background: var(--red);
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.panel-head h3 {
+    margin: 0;
+}
+
+.reservation-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.reservation-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    background: #ffffff;
+}
+
+.reservation-card strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.reservation-card p {
+    margin: 0 0 10px;
+    font-size: 13px;
+}
+
+.map-wrap {
+    min-width: 0;
+    position: relative;
+}
+
+#map {
+    height: 100%;
+    width: 100%;
+    background: #dfeaf0;
+}
+
+.map-toolbar {
+    position: absolute;
+    z-index: 500;
+    top: 18px;
+    left: 18px;
+    right: 18px;
+    background: rgb(255 255 255 / 95%);
+    border: 1px solid rgb(217 227 234 / 80%);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 14px 32px rgb(16 24 40 / 16%);
+    backdrop-filter: blur(8px);
+}
+
+.map-toolbar strong {
+    display: block;
+    margin: 0 0 2px;
+}
+
+.map-toolbar span {
+    display: block;
+    font-size: 13px;
+}
+
+.map-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.map-chip,
+.map-icon {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 850;
+    min-height: 36px;
+    padding: 7px 10px;
+}
+
+.map-chip.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: #ffffff;
+}
+
+.map-icon {
+    width: 38px;
+    padding: 0;
+    color: var(--cyan-dark);
+    font-size: 20px;
+}
+
+.car-marker {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #ffffff;
+    border-radius: 50% 50% 50% 8px;
+    box-shadow:
+        0 9px 20px rgb(16 24 40 / 36%),
+        0 0 0 5px rgb(255 255 255 / 34%);
+    transform: rotate(-45deg);
+}
+
+.car-marker::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border-radius: 50%;
+    background: #ffffff;
+}
+
+.car-marker.free {
+    background: var(--green);
+}
+
+.car-marker.pending {
+    background: var(--yellow);
+}
+
+.car-marker.confirmed {
+    background: var(--blue);
+}
+
+.car-marker.blocked {
+    background: var(--red);
+}
+
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    box-shadow: 0 18px 44px rgb(16 24 40 / 24%);
+}
+
+.leaflet-popup-content {
+    margin: 16px;
+}
+
+.leaflet-control-zoom a {
+    border-radius: 8px !important;
+    color: var(--navy) !important;
+}
+
+.popup {
+    min-width: 240px;
+}
+
+.popup h3 {
+    margin: 0 0 8px;
+    color: var(--navy);
+}
+
+.popup p {
+    margin: 5px 0;
+}
+
+.popup-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.office-popup {
+    min-width: 210px;
+}
+
+@media (max-width: 900px) {
+    .auth-view {
+        grid-template-columns: 1fr;
+        padding: 24px;
+    }
+
+    .app-view {
+        height: auto;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        box-shadow: 0 12px 28px rgb(16 24 40 / 12%);
+    }
+
+    .map-wrap {
+        height: 64vh;
+    }
+
+    .map-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .map-actions {
+        justify-content: flex-start;
+    }
+}

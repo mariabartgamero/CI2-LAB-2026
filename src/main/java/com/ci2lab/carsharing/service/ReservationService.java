@@ -2,182 +2,146 @@ package com.ci2lab.carsharing.service;
 
 import com.ci2lab.carsharing.dto.CreateReservationRequest;
 import com.ci2lab.carsharing.dto.ReservationResponse;
-import com.ci2lab.carsharing.exception.BadRequestException;
-import com.ci2lab.carsharing.exception.NotFoundException;
+import com.ci2lab.carsharing.exception.AppException;
 import com.ci2lab.carsharing.model.Car;
-import com.ci2lab.carsharing.model.Employee;
-import com.ci2lab.carsharing.model.ParticipantStatus;
+import com.ci2lab.carsharing.model.CarStatus;
+import com.ci2lab.carsharing.model.Office;
 import com.ci2lab.carsharing.model.Reservation;
 import com.ci2lab.carsharing.model.ReservationStatus;
-import com.ci2lab.carsharing.model.RideParticipant;
+import com.ci2lab.carsharing.model.User;
 import com.ci2lab.carsharing.repository.CarRepository;
+import com.ci2lab.carsharing.repository.OfficeRepository;
 import com.ci2lab.carsharing.repository.ReservationRepository;
-import com.ci2lab.carsharing.repository.RideParticipantRepository;
+import com.ci2lab.carsharing.repository.UserRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ReservationService {
-    private static final List<ReservationStatus> ACTIVE_BOOKING_STATUSES = List.of(
-            ReservationStatus.CREATED,
-            ReservationStatus.ACTIVE
+    private static final int RESPONSIBLE_POINTS = 25;
+    private static final List<ReservationStatus> ACTIVE_STATUSES = List.of(
+            ReservationStatus.PENDIENTE,
+            ReservationStatus.CONFIRMADA,
+            ReservationStatus.COMPLETA
     );
 
     private final ReservationRepository reservationRepository;
-    private final RideParticipantRepository participantRepository;
     private final CarRepository carRepository;
-    private final CurrentEmployeeService currentEmployeeService;
+    private final UserRepository userRepository;
+    private final OfficeRepository officeRepository;
 
     public ReservationService(
             ReservationRepository reservationRepository,
-            RideParticipantRepository participantRepository,
             CarRepository carRepository,
-            CurrentEmployeeService currentEmployeeService
+            UserRepository userRepository,
+            OfficeRepository officeRepository
     ) {
         this.reservationRepository = reservationRepository;
-        this.participantRepository = participantRepository;
         this.carRepository = carRepository;
-        this.currentEmployeeService = currentEmployeeService;
+        this.userRepository = userRepository;
+        this.officeRepository = officeRepository;
     }
 
     @Transactional
     public ReservationResponse create(CreateReservationRequest request) {
-        if (!request.endTime().isAfter(request.startTime())) {
-            throw new BadRequestException("End time must be after start time");
+        User user = findUser(request.userId());
+        Car car = carRepository.findById(request.carId()).orElseThrow(() -> new AppException("Coche no encontrado"));
+        Office office = officeRepository.findById(request.officeId()).orElseThrow(() -> new AppException("Oficina no encontrada"));
+
+        if (car.getEstado() != CarStatus.LIBRE) {
+            throw new AppException("Este coche no esta libre");
         }
-
-        Employee employee = currentEmployeeService.getCurrentEmployee();
-        Car car = carRepository.findById(request.carId())
-                .orElseThrow(() -> new NotFoundException("Car not found"));
-
-        boolean overlaps = reservationRepository.existsOverlappingReservation(
-                car.getId(),
-                request.startTime(),
-                request.endTime(),
-                ACTIVE_BOOKING_STATUSES
-        );
-        if (overlaps) {
-            throw new BadRequestException("Car already has an active reservation in that time range");
+        if (!office.getEmpresa().getId().equals(user.getEmpresa().getId())) {
+            throw new AppException("La oficina destino debe pertenecer a tu empresa");
         }
 
         Reservation reservation = new Reservation();
-        reservation.setCar(car);
-        reservation.setCompany(employee.getCompany());
-        reservation.setCreatedBy(employee);
-        reservation.setOriginLatitude(request.originLatitude());
-        reservation.setOriginLongitude(request.originLongitude());
-        reservation.setDestination(request.destination());
-        reservation.setStartTime(request.startTime());
-        reservation.setEndTime(request.endTime());
-        reservation.setStatus(ReservationStatus.CREATED);
+        reservation.setCoche(car);
+        reservation.setEmpresa(user.getEmpresa());
+        reservation.setUsuarioCreador(user);
+        reservation.getUsuariosApuntados().add(user);
+        reservation.setHoraSalida(request.horaSalida());
+        reservation.setOrigenLatitud(car.getLatitud());
+        reservation.setOrigenLongitud(car.getLongitud());
+        reservation.setDestino(office);
+        reservation.setEstado(ReservationStatus.PENDIENTE);
+        reservation.setPlazasOcupadas(1);
 
-        Reservation saved = reservationRepository.save(reservation);
-        addParticipant(saved, employee);
-        return toResponse(saved);
+        car.setEstado(CarStatus.RESERVA_PENDIENTE);
+        return ReservationResponse.from(reservationRepository.save(reservation));
     }
 
     @Transactional
-    public ReservationResponse join(Long reservationId) {
-        Employee employee = currentEmployeeService.getCurrentEmployee();
+    public ReservationResponse join(Long reservationId, Long userId) {
         Reservation reservation = findReservation(reservationId);
+        User user = findUser(userId);
 
-        if (!reservation.getCompany().getId().equals(employee.getCompany().getId())) {
-            throw new BadRequestException("Only employees from the same company can join this ride");
+        if (!ACTIVE_STATUSES.contains(reservation.getEstado())) {
+            throw new AppException("Esta reserva ya no acepta pasajeros");
         }
-        if (!ACTIVE_BOOKING_STATUSES.contains(reservation.getStatus())) {
-            throw new BadRequestException("Reservation is not joinable");
+        if (!reservation.getEmpresa().getId().equals(user.getEmpresa().getId())) {
+            throw new AppException("No puedes unirte a reservas de otra empresa");
         }
-        if (participantRepository.existsByReservationIdAndEmployeeIdAndStatusIn(
-                reservationId,
-                employee.getId(),
-                List.of(ParticipantStatus.JOINED)
-        )) {
-            throw new BadRequestException("Employee already joined this reservation");
+        if (reservation.getUsuariosApuntados().stream().anyMatch(existing -> existing.getId().equals(user.getId()))) {
+            throw new AppException("Ya estas apuntado a esta reserva");
         }
-        long currentParticipants = participantRepository.countByReservationIdAndStatus(reservationId, ParticipantStatus.JOINED);
-        if (currentParticipants >= reservation.getCar().getCapacity()) {
-            throw new BadRequestException("Car capacity exceeded");
+        if (reservation.getPlazasOcupadas() >= reservation.getCoche().getPlazasTotales()) {
+            throw new AppException("El coche ya esta completo");
         }
 
-        participantRepository.findByReservationIdAndEmployeeId(reservationId, employee.getId())
-                .ifPresentOrElse(existing -> existing.setStatus(ParticipantStatus.JOINED), () -> addParticipant(reservation, employee));
-        return toResponse(reservation);
+        reservation.getUsuariosApuntados().add(user);
+        reservation.setPlazasOcupadas(reservation.getUsuariosApuntados().size());
+        refreshReservationAndCarStatus(reservation);
+        return ReservationResponse.from(reservation);
     }
 
     @Transactional
-    public ReservationResponse cancel(Long reservationId) {
-        Employee employee = currentEmployeeService.getCurrentEmployee();
+    public ReservationResponse finish(Long reservationId) {
         Reservation reservation = findReservation(reservationId);
-
-        if (!reservation.getCreatedBy().getId().equals(employee.getId())) {
-            participantRepository.findByReservationIdAndEmployeeId(reservationId, employee.getId())
-                    .ifPresentOrElse(
-                            participant -> participant.setStatus(ParticipantStatus.CANCELLED),
-                            () -> {
-                                throw new BadRequestException("Employee is not part of this reservation");
-                            }
-                    );
-            return toResponse(reservation);
+        if (!ACTIVE_STATUSES.contains(reservation.getEstado())) {
+            throw new AppException("La reserva no se puede finalizar");
         }
 
-        reservation.setStatus(ReservationStatus.CANCELLED);
-        return toResponse(reservation);
-    }
+        reservation.setEstado(ReservationStatus.FINALIZADA);
+        Car car = reservation.getCoche();
+        car.setEstado(CarStatus.LIBRE);
+        car.setLatitud(reservation.getDestino().getLatitud());
+        car.setLongitud(reservation.getDestino().getLongitud());
 
-    @Transactional
-    public ReservationResponse complete(Long reservationId) {
-        Employee employee = currentEmployeeService.getCurrentEmployee();
-        Reservation reservation = findReservation(reservationId);
-        if (!reservation.getCreatedBy().getId().equals(employee.getId())) {
-            throw new BadRequestException("Only the creator can complete this reservation");
-        }
-        reservation.setStatus(ReservationStatus.COMPLETED);
-        return toResponse(reservation);
+        reservation.getUsuariosApuntados().forEach(user ->
+                user.setPuntosResponsables(user.getPuntosResponsables() + RESPONSIBLE_POINTS)
+        );
+
+        return ReservationResponse.from(reservation);
     }
 
     @Transactional(readOnly = true)
-    public List<ReservationResponse> myReservations() {
-        Employee employee = currentEmployeeService.getCurrentEmployee();
-        return participantRepository.findByEmployeeIdOrderByJoinedAtDesc(employee.getId()).stream()
-                .map(RideParticipant::getReservation)
-                .map(this::toResponse)
+    public List<ReservationResponse> findByUser(Long userId) {
+        return reservationRepository.findByUsuariosApuntadosIdOrderByHoraSalidaDesc(userId).stream()
+                .map(ReservationResponse::from)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<ReservationResponse> companyAvailableRides() {
-        Employee employee = currentEmployeeService.getCurrentEmployee();
-        return reservationRepository.findByCompanyIdAndStatusInOrderByStartTimeAsc(
-                        employee.getCompany().getId(),
-                        ACTIVE_BOOKING_STATUSES
-                ).stream()
-                .filter(reservation -> participantRepository.countByReservationIdAndStatus(reservation.getId(), ParticipantStatus.JOINED)
-                        < reservation.getCar().getCapacity())
-                .map(this::toResponse)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public ReservationResponse findById(Long id) {
-        return toResponse(findReservation(id));
+    private User findUser(Long id) {
+        return userRepository.findById(id).orElseThrow(() -> new AppException("Usuario no encontrado"));
     }
 
     private Reservation findReservation(Long id) {
-        return reservationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Reservation not found"));
+        return reservationRepository.findById(id).orElseThrow(() -> new AppException("Reserva no encontrada"));
     }
 
-    private void addParticipant(Reservation reservation, Employee employee) {
-        RideParticipant participant = new RideParticipant();
-        participant.setReservation(reservation);
-        participant.setEmployee(employee);
-        participant.setStatus(ParticipantStatus.JOINED);
-        participantRepository.save(participant);
-    }
-
-    private ReservationResponse toResponse(Reservation reservation) {
-        long participants = participantRepository.countByReservationIdAndStatus(reservation.getId(), ParticipantStatus.JOINED);
-        return ReservationResponse.from(reservation, participants);
+    private void refreshReservationAndCarStatus(Reservation reservation) {
+        int plazas = reservation.getPlazasOcupadas();
+        if (plazas >= reservation.getCoche().getPlazasTotales()) {
+            reservation.setEstado(ReservationStatus.COMPLETA);
+            reservation.getCoche().setEstado(CarStatus.COMPLETO);
+        } else if (plazas >= 2) {
+            reservation.setEstado(ReservationStatus.CONFIRMADA);
+            reservation.getCoche().setEstado(CarStatus.RESERVA_CONFIRMADA);
+        } else {
+            reservation.setEstado(ReservationStatus.PENDIENTE);
+            reservation.getCoche().setEstado(CarStatus.RESERVA_PENDIENTE);
+        }
     }
 }

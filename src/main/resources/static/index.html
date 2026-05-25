@@ -3,20 +3,113 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Corporate Carsharing</title>
-    <link rel="stylesheet" href="/css/styles.css">
+    <title>Corporate Ride Madrid</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-    <main class="shell auth-shell">
-        <section class="hero">
-            <p class="eyebrow">Carsharing corporativo</p>
-            <h1>Comparte coche con compañeros de tu empresa.</h1>
-            <p>Reserva coches cercanos, abre plazas en tu trayecto y reduce desplazamientos individuales.</p>
-            <div class="actions">
-                <a class="button primary" href="/login.html">Entrar</a>
-                <a class="button secondary" href="/register.html">Crear cuenta</a>
+    <section class="auth-view" id="authView">
+        <div class="auth-copy">
+            <p class="eyebrow">WiBLE + BlaBlaCar corporativo</p>
+            <h1>Comparte coche hacia la oficina y suma puntos responsables.</h1>
+            <p>Reserva coches repartidos por Madrid o unete a trayectos de companeros de tu empresa.</p>
+        </div>
+
+        <div class="auth-card">
+            <div class="tabs">
+                <button class="tab active" id="loginTab" type="button">Login</button>
+                <button class="tab" id="registerTab" type="button">Registro</button>
             </div>
-        </section>
-    </main>
+
+            <form id="loginForm" class="auth-form">
+                <label>Email<input name="email" type="email" value="ana@telefonica.test" required></label>
+                <label>Password<input name="password" type="password" value="1234" required></label>
+                <button class="button primary" type="submit">Entrar</button>
+            </form>
+
+            <form id="registerForm" class="auth-form hidden">
+                <label>Nombre<input name="nombre" type="text" required></label>
+                <label>Email<input name="email" type="email" required></label>
+                <label>Password<input name="password" type="password" minlength="4" required></label>
+                <label>DNI<input name="dni" type="text" required></label>
+                <label>Codigo empresa<input name="codigoEmpresa" type="text" placeholder="TEL2026" required></label>
+                <button class="button primary" type="submit">Crear cuenta</button>
+            </form>
+
+            <p class="hint">
+                Codigos: TEL2026, REP2026, END2026, ACC2026.
+            </p>
+            <p class="message" id="authMessage"></p>
+        </div>
+    </section>
+
+    <section class="app-view hidden" id="appView">
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="logo">CR</span>
+                <div>
+                    <strong>Corporate Ride</strong>
+                    <small>Madrid</small>
+                </div>
+            </div>
+
+            <div class="profile">
+                <p class="eyebrow">Perfil</p>
+                <h2 id="profileName"></h2>
+                <p id="profileCompany"></p>
+                <div class="points">
+                    <span id="profilePoints">0</span>
+                    <small>puntos responsables</small>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div><span class="dot free"></span>Libre</div>
+                <div><span class="dot pending"></span>Reserva pendiente</div>
+                <div><span class="dot confirmed"></span>Confirmada</div>
+                <div><span class="dot blocked"></span>Completo / no disponible</div>
+            </div>
+
+            <form class="reservation-form" id="reservationForm">
+                <p class="eyebrow">Nueva reserva</p>
+                <input name="carId" id="selectedCarId" type="hidden">
+                <label>Coche seleccionado<input id="selectedCarLabel" type="text" placeholder="Elige un coche libre en el mapa" readonly></label>
+                <label>Oficina destino<select name="officeId" id="officeSelect" required></select></label>
+                <label>Hora salida<input name="horaSalida" id="departureInput" type="datetime-local" required></label>
+                <button class="button primary" type="submit">Reservar coche</button>
+                <p class="message" id="reservationMessage"></p>
+            </form>
+
+            <div class="reservations-panel">
+                <div class="panel-head">
+                    <h3>Mis reservas</h3>
+                    <button class="ghost" id="refreshBtn" type="button">Actualizar</button>
+                </div>
+                <div class="reservation-list" id="reservationList"></div>
+            </div>
+
+            <button class="button secondary" id="logoutBtn" type="button">Cerrar sesion</button>
+        </aside>
+
+        <main class="map-wrap">
+            <div class="map-toolbar">
+                <div>
+                    <strong>Coches visibles</strong>
+                    <span id="mapSummary">Cargando...</span>
+                </div>
+                <div class="map-actions">
+                    <button class="map-chip active" data-filter="TODOS" type="button">Todos</button>
+                    <button class="map-chip" data-filter="LIBRE" type="button">Libres</button>
+                    <button class="map-chip" data-filter="RESERVA" type="button">Reservas</button>
+                    <button class="map-chip" data-filter="NO_DISPONIBLE" type="button">No disponibles</button>
+                    <button class="map-icon" id="fitMapBtn" title="Centrar Madrid" type="button">⌖</button>
+                </div>
+            </div>
+            <div id="map"></div>
+        </main>
+    </section>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="./app.js"></script>
 </body>
 </html>

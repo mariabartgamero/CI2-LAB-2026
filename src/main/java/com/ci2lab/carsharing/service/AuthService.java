@@ -1,83 +1,55 @@
 package com.ci2lab.carsharing.service;
 
-import com.ci2lab.carsharing.dto.AuthResponse;
-import com.ci2lab.carsharing.dto.EmployeeResponse;
-import com.ci2lab.carsharing.dto.LoginRequest;
+import com.ci2lab.carsharing.dto.AuthRequest;
 import com.ci2lab.carsharing.dto.RegisterRequest;
-import com.ci2lab.carsharing.exception.BadRequestException;
+import com.ci2lab.carsharing.dto.UserResponse;
+import com.ci2lab.carsharing.exception.AppException;
 import com.ci2lab.carsharing.model.Company;
-import com.ci2lab.carsharing.model.Employee;
+import com.ci2lab.carsharing.model.User;
 import com.ci2lab.carsharing.repository.CompanyRepository;
-import com.ci2lab.carsharing.repository.EmployeeRepository;
-import com.ci2lab.carsharing.security.JwtService;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.ci2lab.carsharing.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
-    private final EmployeeRepository employeeRepository;
+    private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService;
 
-    public AuthService(
-            EmployeeRepository employeeRepository,
-            CompanyRepository companyRepository,
-            PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager,
-            JwtService jwtService
-    ) {
-        this.employeeRepository = employeeRepository;
+    public AuthService(UserRepository userRepository, CompanyRepository companyRepository) {
+        this.userRepository = userRepository;
         this.companyRepository = companyRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-        this.jwtService = jwtService;
     }
 
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
-        if (employeeRepository.existsByEmailIgnoreCase(request.email())) {
-            throw new BadRequestException("Email already registered");
+    public UserResponse register(RegisterRequest request) {
+        if (userRepository.existsByEmailIgnoreCase(request.email())) {
+            throw new AppException("Ya existe un usuario con ese email");
+        }
+        if (userRepository.existsByDniIgnoreCase(request.dni())) {
+            throw new AppException("Ya existe un usuario con ese DNI");
         }
 
-        Company company = resolveCompany(request);
-        Employee employee = new Employee();
-        employee.setName(request.name());
-        employee.setEmail(request.email().toLowerCase());
-        employee.setPasswordHash(passwordEncoder.encode(request.password()));
-        employee.setCompany(company);
+        Company company = companyRepository.findByCodigoEmpresaIgnoreCase(request.codigoEmpresa())
+                .orElseThrow(() -> new AppException("Codigo de empresa no valido"));
 
-        Employee saved = employeeRepository.save(employee);
-        return new AuthResponse(jwtService.generateToken(saved.getEmail()), EmployeeResponse.from(saved));
+        User user = new User();
+        user.setNombre(request.nombre());
+        user.setEmail(request.email().toLowerCase());
+        user.setPassword(request.password());
+        user.setDni(request.dni().toUpperCase());
+        user.setEmpresa(company);
+        user.setCodigoEmpresa(company.getCodigoEmpresa());
+        return UserResponse.from(userRepository.save(user));
     }
 
     @Transactional(readOnly = true)
-    public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password())
-        );
-        Employee employee = employeeRepository.findByEmailIgnoreCase(request.email())
-                .orElseThrow(() -> new BadRequestException("Invalid credentials"));
-        return new AuthResponse(jwtService.generateToken(employee.getEmail()), EmployeeResponse.from(employee));
-    }
-
-    private Company resolveCompany(RegisterRequest request) {
-        if (request.companyId() != null) {
-            return companyRepository.findById(request.companyId())
-                    .orElseThrow(() -> new BadRequestException("Company not found"));
+    public UserResponse login(AuthRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(request.email())
+                .orElseThrow(() -> new AppException("Email o password incorrectos"));
+        if (!user.getPassword().equals(request.password())) {
+            throw new AppException("Email o password incorrectos");
         }
-        if (request.companyName() == null || request.companyName().isBlank()) {
-            throw new BadRequestException("companyId or companyName is required");
-        }
-        return companyRepository.findByNameIgnoreCase(request.companyName())
-                .orElseGet(() -> {
-                    Company company = new Company();
-                    company.setName(request.companyName());
-                    return companyRepository.save(company);
-                });
+        return UserResponse.from(user);
     }
 }

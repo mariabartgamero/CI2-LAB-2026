@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cars")
@@ -17,92 +16,74 @@ public class Car {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
-    private String brand;
-
-    @Column(nullable = false, length = 100)
-    private String model;
-
-    @Column(nullable = false, unique = true, length = 30)
-    private String licensePlate;
+    @Column(nullable = false, unique = true)
+    private String matricula;
 
     @Column(nullable = false)
-    private int capacity;
-
-    @Column(nullable = false)
-    private double latitude;
-
-    @Column(nullable = false)
-    private double longitude;
+    private int bateria;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 40)
-    private CarStatus status = CarStatus.AVAILABLE;
+    @Column(nullable = false)
+    private CarStatus estado = CarStatus.LIBRE;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private double latitud;
+
+    @Column(nullable = false)
+    private double longitud;
+
+    @Column(nullable = false)
+    private int plazasTotales = 5;
 
     public Long getId() {
         return id;
     }
 
-    public String getBrand() {
-        return brand;
+    public String getMatricula() {
+        return matricula;
     }
 
-    public void setBrand(String brand) {
-        this.brand = brand;
+    public void setMatricula(String matricula) {
+        this.matricula = matricula;
     }
 
-    public String getModel() {
-        return model;
+    public int getBateria() {
+        return bateria;
     }
 
-    public void setModel(String model) {
-        this.model = model;
+    public void setBateria(int bateria) {
+        this.bateria = bateria;
     }
 
-    public String getLicensePlate() {
-        return licensePlate;
+    public CarStatus getEstado() {
+        return estado;
     }
 
-    public void setLicensePlate(String licensePlate) {
-        this.licensePlate = licensePlate;
+    public void setEstado(CarStatus estado) {
+        this.estado = estado;
     }
 
-    public int getCapacity() {
-        return capacity;
+    public double getLatitud() {
+        return latitud;
     }
 
-    public void setCapacity(int capacity) {
-        this.capacity = capacity;
+    public void setLatitud(double latitud) {
+        this.latitud = latitud;
     }
 
-    public double getLatitude() {
-        return latitude;
+    public double getLongitud() {
+        return longitud;
     }
 
-    public void setLatitude(double latitude) {
-        this.latitude = latitude;
+    public void setLongitud(double longitud) {
+        this.longitud = longitud;
     }
 
-    public double getLongitude() {
-        return longitude;
+    public int getPlazasTotales() {
+        return plazasTotales;
     }
 
-    public void setLongitude(double longitude) {
-        this.longitude = longitude;
-    }
-
-    public CarStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(CarStatus status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public void setPlazasTotales(int plazasTotales) {
+        this.plazasTotales = plazasTotales;
     }
 }

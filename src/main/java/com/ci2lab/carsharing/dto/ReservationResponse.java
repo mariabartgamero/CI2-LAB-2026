@@ -3,35 +3,42 @@ package com.ci2lab.carsharing.dto;
 import com.ci2lab.carsharing.model.Reservation;
 import com.ci2lab.carsharing.model.ReservationStatus;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ReservationResponse(
         Long id,
-        CarResponse car,
-        CompanyResponse company,
-        EmployeeResponse createdBy,
-        double originLatitude,
-        double originLongitude,
-        String destination,
-        LocalDateTime startTime,
-        LocalDateTime endTime,
-        ReservationStatus status,
-        long participants,
-        int capacity
+        Long cocheId,
+        String matricula,
+        Long empresaId,
+        String empresaNombre,
+        Long usuarioCreadorId,
+        List<String> usuariosApuntados,
+        LocalDateTime horaSalida,
+        double origenLatitud,
+        double origenLongitud,
+        OfficeResponse destino,
+        ReservationStatus estado,
+        int plazasOcupadas,
+        int plazasDisponibles,
+        LocalDateTime fechaCreacion
 ) {
-    public static ReservationResponse from(Reservation reservation, long participants) {
+    public static ReservationResponse from(Reservation reservation) {
         return new ReservationResponse(
                 reservation.getId(),
-                CarResponse.from(reservation.getCar()),
-                CompanyResponse.from(reservation.getCompany()),
-                EmployeeResponse.from(reservation.getCreatedBy()),
-                reservation.getOriginLatitude(),
-                reservation.getOriginLongitude(),
-                reservation.getDestination(),
-                reservation.getStartTime(),
-                reservation.getEndTime(),
-                reservation.getStatus(),
-                participants,
-                reservation.getCar().getCapacity()
+                reservation.getCoche().getId(),
+                reservation.getCoche().getMatricula(),
+                reservation.getEmpresa().getId(),
+                reservation.getEmpresa().getNombre(),
+                reservation.getUsuarioCreador().getId(),
+                reservation.getUsuariosApuntados().stream().map(UserResponse::from).map(UserResponse::nombre).toList(),
+                reservation.getHoraSalida(),
+                reservation.getOrigenLatitud(),
+                reservation.getOrigenLongitud(),
+                OfficeResponse.from(reservation.getDestino()),
+                reservation.getEstado(),
+                reservation.getPlazasOcupadas(),
+                reservation.getCoche().getPlazasTotales() - reservation.getPlazasOcupadas(),
+                reservation.getFechaCreacion()
         );
     }
 }

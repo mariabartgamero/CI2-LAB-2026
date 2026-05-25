@@ -9,9 +9,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "reservations")
@@ -22,115 +26,132 @@ public class Reservation {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "car_id")
-    private Car car;
+    private Car coche;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "company_id")
-    private Company company;
+    private Company empresa;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "created_by_id")
-    private Employee createdBy;
+    @JoinColumn(name = "creator_user_id")
+    private User usuarioCreador;
+
+    @ManyToMany
+    @JoinTable(
+            name = "reservation_users",
+            joinColumns = @JoinColumn(name = "reservation_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private List<User> usuariosApuntados = new ArrayList<>();
 
     @Column(nullable = false)
-    private double originLatitude;
+    private LocalDateTime horaSalida;
 
     @Column(nullable = false)
-    private double originLongitude;
+    private double origenLatitud;
 
     @Column(nullable = false)
-    private String destination;
+    private double origenLongitud;
 
-    @Column(nullable = false)
-    private LocalDateTime startTime;
-
-    @Column(nullable = false)
-    private LocalDateTime endTime;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "office_id")
+    private Office destino;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 40)
-    private ReservationStatus status = ReservationStatus.CREATED;
+    @Column(nullable = false)
+    private ReservationStatus estado = ReservationStatus.PENDIENTE;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private int plazasOcupadas = 1;
+
+    @Column(nullable = false)
+    private LocalDateTime fechaCreacion = LocalDateTime.now();
 
     public Long getId() {
         return id;
     }
 
-    public Car getCar() {
-        return car;
+    public Car getCoche() {
+        return coche;
     }
 
-    public void setCar(Car car) {
-        this.car = car;
+    public void setCoche(Car coche) {
+        this.coche = coche;
     }
 
-    public Company getCompany() {
-        return company;
+    public Company getEmpresa() {
+        return empresa;
     }
 
-    public void setCompany(Company company) {
-        this.company = company;
+    public void setEmpresa(Company empresa) {
+        this.empresa = empresa;
     }
 
-    public Employee getCreatedBy() {
-        return createdBy;
+    public User getUsuarioCreador() {
+        return usuarioCreador;
     }
 
-    public void setCreatedBy(Employee createdBy) {
-        this.createdBy = createdBy;
+    public void setUsuarioCreador(User usuarioCreador) {
+        this.usuarioCreador = usuarioCreador;
     }
 
-    public double getOriginLatitude() {
-        return originLatitude;
+    public List<User> getUsuariosApuntados() {
+        return usuariosApuntados;
     }
 
-    public void setOriginLatitude(double originLatitude) {
-        this.originLatitude = originLatitude;
+    public void setUsuariosApuntados(List<User> usuariosApuntados) {
+        this.usuariosApuntados = usuariosApuntados;
     }
 
-    public double getOriginLongitude() {
-        return originLongitude;
+    public LocalDateTime getHoraSalida() {
+        return horaSalida;
     }
 
-    public void setOriginLongitude(double originLongitude) {
-        this.originLongitude = originLongitude;
+    public void setHoraSalida(LocalDateTime horaSalida) {
+        this.horaSalida = horaSalida;
     }
 
-    public String getDestination() {
-        return destination;
+    public double getOrigenLatitud() {
+        return origenLatitud;
     }
 
-    public void setDestination(String destination) {
-        this.destination = destination;
+    public void setOrigenLatitud(double origenLatitud) {
+        this.origenLatitud = origenLatitud;
     }
 
-    public LocalDateTime getStartTime() {
-        return startTime;
+    public double getOrigenLongitud() {
+        return origenLongitud;
     }
 
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
+    public void setOrigenLongitud(double origenLongitud) {
+        this.origenLongitud = origenLongitud;
     }
 
-    public LocalDateTime getEndTime() {
-        return endTime;
+    public Office getDestino() {
+        return destino;
     }
 
-    public void setEndTime(LocalDateTime endTime) {
-        this.endTime = endTime;
+    public void setDestino(Office destino) {
+        this.destino = destino;
     }
 
-    public ReservationStatus getStatus() {
-        return status;
+    public ReservationStatus getEstado() {
+        return estado;
     }
 
-    public void setStatus(ReservationStatus status) {
-        this.status = status;
+    public void setEstado(ReservationStatus estado) {
+        this.estado = estado;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public int getPlazasOcupadas() {
+        return plazasOcupadas;
+    }
+
+    public void setPlazasOcupadas(int plazasOcupadas) {
+        this.plazasOcupadas = plazasOcupadas;
+    }
+
+    public LocalDateTime getFechaCreacion() {
+        return fechaCreacion;
     }
 }
