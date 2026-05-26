@@ -7,6 +7,8 @@ public record CreateReservationRequest(
         @NotNull Long userId,
         @NotNull Long carId,
         @NotNull Long officeId,
-        @NotNull LocalDateTime horaSalida
+        LocalDateTime horaSalida,
+        Integer duracionMinutos,
+        Integer puntosPrevistos
 ) {
 }

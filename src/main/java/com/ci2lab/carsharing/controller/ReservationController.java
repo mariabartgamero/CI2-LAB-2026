@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/reservations")
@@ -38,6 +39,16 @@ public class ReservationController {
     @PostMapping("/{id}/finish")
     public ReservationResponse finish(@PathVariable Long id) {
         return reservationService.finish(id);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ReservationResponse cancel(@PathVariable Long id, @Valid @RequestBody UserActionRequest request) {
+        return reservationService.cancel(id, request.userId());
+    }
+
+    @GetMapping("/user/{userId}/active")
+    public ReservationResponse findActiveByUser(@PathVariable Long userId) {
+        return reservationService.findActiveByUser(userId);
     }
 
     @GetMapping("/user/{userId}")

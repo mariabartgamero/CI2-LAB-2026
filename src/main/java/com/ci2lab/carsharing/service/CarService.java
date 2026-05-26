@@ -19,38 +19,48 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CarService {
     private static final List<ReservationStatus> ACTIVE_STATUSES = List.of(
-            ReservationStatus.PENDIENTE,
-            ReservationStatus.CONFIRMADA,
-            ReservationStatus.COMPLETA
+            ReservationStatus.ACTIVE
     );
 
     private final CarRepository carRepository;
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
+    private final ReservationService reservationService;
 
-    public CarService(CarRepository carRepository, ReservationRepository reservationRepository, UserRepository userRepository) {
+    public CarService(
+            CarRepository carRepository,
+            ReservationRepository reservationRepository,
+            UserRepository userRepository,
+            ReservationService reservationService
+    ) {
         this.carRepository = carRepository;
         this.reservationRepository = reservationRepository;
         this.userRepository = userRepository;
+        this.reservationService = reservationService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<CarMapResponse> findAll() {
+        reservationService.completeExpiredReservations();
         return carRepository.findAll().stream().map(this::toMapResponse).toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<CarMapResponse> findAvailable() {
+        reservationService.completeExpiredReservations();
         return carRepository.findByEstado(CarStatus.LIBRE).stream().map(this::toMapResponse).toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<CarMapResponse> findVisibleForUser(Long userId) {
+        reservationService.completeExpiredReservations();
         User user = userRepository.findById(userId).orElseThrow(() -> new AppException("Usuario no encontrado"));
         return carRepository.findAll().stream()
                 .map(this::toMapResponse)
                 .filter(car -> car.estado() == CarStatus.LIBRE
-                        || car.reserva() != null && car.reserva().empresaId().equals(user.getEmpresa().getId()))
+                        || car.estado() != CarStatus.EN_USO
+                        && car.reserva() != null
+                        && car.reserva().empresaId().equals(user.getEmpresa().getId()))
                 .toList();
     }
 

@@ -19,7 +19,7 @@
             </div>
             <p class="eyebrow">Movilidad corporativa compartida</p>
             <h1>Reserva, comparte y llega a la oficina con menos emisiones.</h1>
-            <p>Accede con tu empresa para encontrar coches disponibles en Madrid, unirte a trayectos de compañeros y sumar puntos responsables.</p>
+            <p>Accede con tu empresa para encontrar Mercedes EQA disponibles en Madrid, unirte a trayectos de compañeros y sumar puntos responsables.</p>
             <div class="auth-proof">
                 <span>Coches por empresa</span>
                 <span>Reservas en tiempo real</span>
@@ -42,12 +42,12 @@
             <form id="loginForm" class="auth-form">
                 <label>Correo corporativo
                     <input id="loginEmail" name="email" type="text" inputmode="email" value="ana@telefonica.test" autocomplete="email" required>
-                    <span class="field-error hidden" id="loginEmailError">CORREO NO VÁLIDO</span>
+                    <span class="field-error hidden" id="loginEmailError">CORREO NO VALIDO</span>
                 </label>
-                <label>Contraseña
+                <label>Contrasena
                     <span class="password-field">
                         <input name="password" type="password" value="1234" autocomplete="current-password" required>
-                        <button class="password-toggle" type="button" aria-label="Mostrar contraseña" title="Mostrar contraseña">Mostrar</button>
+                        <button class="password-toggle" type="button" aria-label="Mostrar contrasena" title="Mostrar contrasena">Mostrar</button>
                     </span>
                 </label>
                 <button class="button primary auth-submit" type="submit">Entrar</button>
@@ -57,105 +57,57 @@
                 <label>Nombre completo<input name="nombre" type="text" autocomplete="name" minlength="3" required></label>
                 <label>Correo corporativo
                     <input id="registerEmail" name="email" type="text" inputmode="email" autocomplete="email" required>
-                    <span class="field-error hidden" id="registerEmailError">CORREO NO VÁLIDO</span>
+                    <span class="field-error hidden" id="registerEmailError">CORREO NO VALIDO</span>
                 </label>
-                <label>Contraseña
+                <label>Contrasena
                     <span class="password-field">
                         <input name="password" type="password" autocomplete="new-password" minlength="6" required>
-                        <button class="password-toggle" type="button" aria-label="Mostrar contraseña" title="Mostrar contraseña">Mostrar</button>
+                        <button class="password-toggle" type="button" aria-label="Mostrar contrasena" title="Mostrar contrasena">Mostrar</button>
                     </span>
                 </label>
-                <label>Repetir contraseña
+                <label>Repetir contrasena
                     <span class="password-field">
                         <input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required>
-                        <button class="password-toggle" type="button" aria-label="Mostrar contraseña" title="Mostrar contraseña">Mostrar</button>
+                        <button class="password-toggle" type="button" aria-label="Mostrar contrasena" title="Mostrar contrasena">Mostrar</button>
                     </span>
                 </label>
                 <label>DNI
                     <input id="registerDni" name="dni" type="text" maxlength="9" placeholder="12345678A" autocomplete="off" required>
                     <span class="field-error hidden" id="dniError">DNI INCORRECTO</span>
                 </label>
-                <label>Código de empresa
+                <label>Codigo de empresa
                     <input id="companyCode" name="codigoEmpresa" type="text" maxlength="7" placeholder="TEL2026" autocomplete="organization" required>
                     <span class="field-error hidden" id="companyError">EMPRESA INCORRECTA</span>
                 </label>
                 <button class="button primary auth-submit" type="submit">Crear cuenta</button>
             </form>
 
-            <p class="hint">
-                Códigos disponibles: TEL2026, REP2026, END2026 y ACC2026.
-            </p>
+            <p class="hint">Codigos disponibles: TEL2026, REP2026, END2026 y ACC2026.</p>
             <p class="message" id="authMessage"></p>
         </div>
     </section>
 
-    <section class="app-view hidden" id="appView">
-        <aside class="sidebar">
-            <div class="brand">
-                <span class="logo">CR</span>
-                <div>
-                    <strong>Corporate Ride</strong>
-                    <small>Madrid</small>
-                </div>
+    <section class="mobile-app hidden" id="appView">
+        <div id="map"></div>
+
+        <header class="floating-topbar">
+            <button class="round-button" id="menuBtn" type="button" aria-label="Menu">☰</button>
+            <div class="topbar-copy">
+                <strong>Corporate Ride</strong>
+                <span id="mapSummary">Cargando coches...</span>
             </div>
+            <button class="round-button" id="locateBtn" type="button" aria-label="Centrar mapa">⌖</button>
+        </header>
 
-            <div class="profile">
-                <p class="eyebrow">Perfil</p>
-                <h2 id="profileName"></h2>
-                <p id="profileCompany"></p>
-                <div class="points">
-                    <span id="profilePoints">0</span>
-                    <small>puntos responsables</small>
-                </div>
-            </div>
+        <section class="user-pill" id="userPill"></section>
+        <section class="active-reservation hidden" id="activeReservation"></section>
+        <section class="bottom-sheet hidden" id="carBottomSheet"></section>
+        <section class="menu-drawer hidden" id="menuDrawer"></section>
 
-            <div class="legend">
-                <div><span class="dot free"></span>Libre</div>
-                <div><span class="dot pending"></span>Reserva pendiente</div>
-                <div><span class="dot confirmed"></span>Confirmada</div>
-                <div><span class="dot blocked"></span>Completo / no disponible</div>
-            </div>
-
-            <form class="reservation-form" id="reservationForm">
-                <p class="eyebrow">Nueva reserva</p>
-                <input name="carId" id="selectedCarId" type="hidden">
-                <label>Coche seleccionado<input id="selectedCarLabel" type="text" placeholder="Elige un coche libre en el mapa" readonly></label>
-                <label>Oficina destino<select name="officeId" id="officeSelect" required></select></label>
-                <label>Hora salida<input name="horaSalida" id="departureInput" type="datetime-local" required></label>
-                <button class="button primary" type="submit">Reservar coche</button>
-                <p class="message" id="reservationMessage"></p>
-            </form>
-
-            <div class="reservations-panel">
-                <div class="panel-head">
-                    <h3>Mis reservas</h3>
-                    <button class="ghost" id="refreshBtn" type="button">Actualizar</button>
-                </div>
-                <div class="reservation-list" id="reservationList"></div>
-            </div>
-
-            <button class="button secondary" id="logoutBtn" type="button">Cerrar sesion</button>
-        </aside>
-
-        <main class="map-wrap">
-            <div class="map-toolbar">
-                <div>
-                    <strong>Coches visibles</strong>
-                    <span id="mapSummary">Cargando...</span>
-                </div>
-                <div class="map-actions">
-                    <button class="map-chip active" data-filter="TODOS" type="button">Todos</button>
-                    <button class="map-chip" data-filter="LIBRE" type="button">Libres</button>
-                    <button class="map-chip" data-filter="RESERVA" type="button">Reservas</button>
-                    <button class="map-chip" data-filter="NO_DISPONIBLE" type="button">No disponibles</button>
-                    <button class="map-icon" id="fitMapBtn" title="Centrar Madrid" type="button">⌖</button>
-                </div>
-            </div>
-            <div id="map"></div>
-        </main>
+        <div class="toast hidden" id="toast"></div>
     </section>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="./app.js"></script>
+    <script type="module" src="./app.js"></script>
 </body>
 </html>

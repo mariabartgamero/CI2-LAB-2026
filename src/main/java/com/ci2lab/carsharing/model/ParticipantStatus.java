@@ -1,6 +1,6 @@
 package com.ci2lab.carsharing.model;
 
-public enum ReservationStatus {
+public enum ParticipantStatus {
     ACTIVE,
     CANCELLED,
     COMPLETED

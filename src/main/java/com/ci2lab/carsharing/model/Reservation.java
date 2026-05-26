@@ -12,7 +12,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.CascadeType;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,8 +46,14 @@ public class Reservation {
     )
     private List<User> usuariosApuntados = new ArrayList<>();
 
+    @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL)
+    private List<ReservationParticipant> participantes = new ArrayList<>();
+
     @Column(nullable = false)
     private LocalDateTime horaSalida;
+
+    @Column(nullable = false)
+    private LocalDateTime horaEstimadaLlegada;
 
     @Column(nullable = false)
     private double origenLatitud;
@@ -59,10 +67,16 @@ public class Reservation {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ReservationStatus estado = ReservationStatus.PENDIENTE;
+    private ReservationStatus estado = ReservationStatus.ACTIVE;
+
+    @Column(nullable = false)
+    private int puntosPrevistos;
 
     @Column(nullable = false)
     private int plazasOcupadas = 1;
+
+    @Column(nullable = false)
+    private boolean puntosAsignados = false;
 
     @Column(nullable = false)
     private LocalDateTime fechaCreacion = LocalDateTime.now();
@@ -103,12 +117,28 @@ public class Reservation {
         this.usuariosApuntados = usuariosApuntados;
     }
 
+    public List<ReservationParticipant> getParticipantes() {
+        return participantes;
+    }
+
+    public void setParticipantes(List<ReservationParticipant> participantes) {
+        this.participantes = participantes;
+    }
+
     public LocalDateTime getHoraSalida() {
         return horaSalida;
     }
 
     public void setHoraSalida(LocalDateTime horaSalida) {
         this.horaSalida = horaSalida;
+    }
+
+    public LocalDateTime getHoraEstimadaLlegada() {
+        return horaEstimadaLlegada;
+    }
+
+    public void setHoraEstimadaLlegada(LocalDateTime horaEstimadaLlegada) {
+        this.horaEstimadaLlegada = horaEstimadaLlegada;
     }
 
     public double getOrigenLatitud() {
@@ -143,12 +173,28 @@ public class Reservation {
         this.estado = estado;
     }
 
+    public int getPuntosPrevistos() {
+        return puntosPrevistos;
+    }
+
+    public void setPuntosPrevistos(int puntosPrevistos) {
+        this.puntosPrevistos = puntosPrevistos;
+    }
+
     public int getPlazasOcupadas() {
         return plazasOcupadas;
     }
 
     public void setPlazasOcupadas(int plazasOcupadas) {
         this.plazasOcupadas = plazasOcupadas;
+    }
+
+    public boolean isPuntosAsignados() {
+        return puntosAsignados;
+    }
+
+    public void setPuntosAsignados(boolean puntosAsignados) {
+        this.puntosAsignados = puntosAsignados;
     }
 
     public LocalDateTime getFechaCreacion() {
