@@ -45,6 +45,7 @@ select {
     margin-top: 6px;
     background: #ffffff;
     color: var(--ink);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 input:focus,
@@ -52,6 +53,11 @@ select:focus {
     border-color: var(--cyan);
     box-shadow: 0 0 0 3px rgb(0 166 214 / 15%);
     outline: none;
+}
+
+input.invalid {
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgb(227 75 75 / 14%);
 }
 
 label {
@@ -68,12 +74,12 @@ label {
 .auth-view {
     min-height: 100vh;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 410px;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
     align-items: center;
     gap: 48px;
-    padding: 32px;
+    padding: 40px;
     background:
-        linear-gradient(120deg, rgb(7 26 47 / 96%), rgb(7 26 47 / 72)),
+        linear-gradient(120deg, rgb(7 26 47 / 96%), rgb(7 26 47 / 78) 50%, rgb(0 166 214 / 34)),
         url("https://images.unsplash.com/photo-1511527844068-006b95d162c2?auto=format&fit=crop&w=1800&q=80") center / cover;
 }
 
@@ -82,9 +88,25 @@ label {
     color: #ffffff;
 }
 
+.auth-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 54px;
+}
+
+.auth-brand strong,
+.auth-brand small {
+    display: block;
+}
+
+.auth-brand small {
+    color: rgb(255 255 255 / 72%);
+}
+
 .auth-copy h1 {
-    font-size: clamp(44px, 7vw, 82px);
-    line-height: 0.95;
+    font-size: clamp(42px, 6vw, 76px);
+    line-height: 1;
     margin: 14px 0 18px;
     letter-spacing: 0;
 }
@@ -93,6 +115,24 @@ label {
     max-width: 620px;
     color: rgb(255 255 255 / 78%);
     font-size: 20px;
+}
+
+.auth-proof {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.auth-proof span {
+    border: 1px solid rgb(255 255 255 / 22%);
+    border-radius: 8px;
+    padding: 9px 12px;
+    background: rgb(255 255 255 / 10%);
+    color: rgb(255 255 255 / 86%);
+    font-size: 13px;
+    font-weight: 800;
+    backdrop-filter: blur(8px);
 }
 
 .eyebrow {
@@ -114,27 +154,49 @@ label {
     backdrop-filter: blur(10px);
 }
 
-.tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+.auth-card-head {
     margin-bottom: 18px;
 }
 
-.tab {
+.auth-card-head h2 {
+    margin: 0 0 6px;
+    color: var(--navy);
+    font-size: 28px;
+    line-height: 1.1;
+}
+
+.auth-card-head p:not(.eyebrow) {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 18px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #ffffff;
+    padding: 4px;
+    background: #eef4f8;
+}
+
+.tab {
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
     color: var(--muted);
     cursor: pointer;
     padding: 10px;
     font-weight: 850;
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .tab.active {
-    background: var(--navy);
-    color: #ffffff;
-    border-color: var(--navy);
+    background: #ffffff;
+    color: var(--navy);
+    box-shadow: 0 8px 18px rgb(16 24 40 / 10%);
 }
 
 .auth-form,
@@ -150,6 +212,16 @@ label {
     min-height: 44px;
     padding: 10px 14px;
     font-weight: 850;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.button:disabled {
+    cursor: wait;
+    opacity: 0.72;
+}
+
+.button:not(:disabled):active {
+    transform: translateY(1px);
 }
 
 .primary {
@@ -181,12 +253,54 @@ label {
     font-size: 13px;
 }
 
+.hint {
+    margin: 16px 0 0;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+}
+
+.message {
+    min-height: 18px;
+    margin: 10px 0 0;
+    font-weight: 750;
+}
+
 .message.error {
     color: var(--red);
 }
 
 .message.success {
     color: var(--green);
+}
+
+.field-error {
+    display: block;
+    margin-top: 6px;
+    color: var(--red);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.password-field {
+    position: relative;
+    display: block;
+}
+
+.password-field input {
+    padding-right: 82px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    border: 0;
+    background: transparent;
+    color: var(--cyan-dark);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 850;
+    transform: translateY(-35%);
 }
 
 .app-view {

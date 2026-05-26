@@ -31,7 +31,7 @@ public class AuthService {
         }
 
         Company company = companyRepository.findByCodigoEmpresaIgnoreCase(request.codigoEmpresa())
-                .orElseThrow(() -> new AppException("Codigo de empresa no valido"));
+                .orElseThrow(() -> new AppException("EMPRESA INCORRECTA"));
 
         User user = new User();
         user.setNombre(request.nombre());

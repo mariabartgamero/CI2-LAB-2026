@@ -28,6 +28,9 @@ const state = {
     officeMarkers: [],
     offices: [],
     cars: [],
+    companyCodes: new Set(),
+    companyCodeLength: 7,
+    companiesLoaded: false,
     filter: "TODOS"
 };
 
@@ -35,15 +38,35 @@ const authView = document.querySelector("#authView");
 const appView = document.querySelector("#appView");
 const authMessage = document.querySelector("#authMessage");
 const reservationMessage = document.querySelector("#reservationMessage");
+const authTitle = document.querySelector("#authTitle");
+const authSubtitle = document.querySelector("#authSubtitle");
+const registerForm = document.querySelector("#registerForm");
+const registerDniInput = document.querySelector("#registerDni");
+const dniError = document.querySelector("#dniError");
+const companyCodeInput = document.querySelector("#companyCode");
+const companyError = document.querySelector("#companyError");
+const loginEmailInput = document.querySelector("#loginEmail");
+const loginEmailError = document.querySelector("#loginEmailError");
+const registerEmailInput = document.querySelector("#registerEmail");
+const registerEmailError = document.querySelector("#registerEmailError");
 
 document.querySelector("#loginTab").addEventListener("click", () => showAuthTab("login"));
 document.querySelector("#registerTab").addEventListener("click", () => showAuthTab("register"));
 document.querySelector("#loginForm").addEventListener("submit", login);
-document.querySelector("#registerForm").addEventListener("submit", register);
+registerForm.addEventListener("submit", register);
+registerForm.addEventListener("input", updateRegisterState);
+loginEmailInput.addEventListener("input", () => {
+    if (isValidEmail(cleanEmail(loginEmailInput.value))) {
+        showLoginEmailError(false);
+    }
+});
 document.querySelector("#reservationForm").addEventListener("submit", createReservation);
 document.querySelector("#refreshBtn").addEventListener("click", refreshApp);
 document.querySelector("#logoutBtn").addEventListener("click", logout);
 document.querySelector("#fitMapBtn").addEventListener("click", fitMadrid);
+document.querySelectorAll(".password-toggle").forEach((button) => {
+    button.addEventListener("click", () => togglePassword(button));
+});
 document.querySelectorAll(".map-chip").forEach((button) => {
     button.addEventListener("click", () => {
         state.filter = button.dataset.filter;
@@ -52,6 +75,8 @@ document.querySelectorAll(".map-chip").forEach((button) => {
         renderCars();
     });
 });
+
+loadCompaniesForRegister();
 
 window.startReserve = (carId, label) => {
     document.querySelector("#selectedCarId").value = carId;
@@ -88,45 +113,187 @@ function showAuthTab(tab) {
     document.querySelector("#loginForm").classList.toggle("hidden", tab !== "login");
     document.querySelector("#registerForm").classList.toggle("hidden", tab !== "register");
     authMessage.textContent = "";
+    authMessage.className = "message";
+    showLoginEmailError(false);
+    authTitle.textContent = tab === "login" ? "Bienvenido de nuevo" : "Alta de empleado";
+    authSubtitle.textContent = tab === "login"
+        ? "Inicia sesión para gestionar tus trayectos corporativos."
+        : "Crea tu cuenta con el código facilitado por tu empresa.";
+    if (tab === "register") {
+        loadCompaniesForRegister();
+        updateRegisterState();
+    }
 }
 
 async function login(event) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     const form = new FormData(event.currentTarget);
+    const email = cleanEmail(form.get("email"));
+    const password = String(form.get("password") || "");
+    if (!isValidEmail(email)) {
+        showLoginEmailError(true);
+        showMessage(authMessage, "CORREO NO VÁLIDO", "error");
+        return;
+    }
+    showLoginEmailError(false);
+
+    if (!password) {
+        showMessage(authMessage, "Introduce tu contraseña.", "error");
+        return;
+    }
+
+    setAuthLoading(formElement, true, "Entrando...");
     try {
         const user = await api.request("/api/auth/login", {
             method: "POST",
             body: JSON.stringify({
-                email: form.get("email"),
-                password: form.get("password")
+                email,
+                password
             })
         });
         setUser(user);
         await bootApp();
     } catch (error) {
         showMessage(authMessage, error.message, "error");
+    } finally {
+        setAuthLoading(formElement, false);
     }
 }
 
 async function register(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const payload = {
+        nombre: cleanText(form.get("nombre")),
+        email: cleanEmail(form.get("email")),
+        password: String(form.get("password") || ""),
+        confirmPassword: String(form.get("confirmPassword") || ""),
+        dni: cleanText(form.get("dni")).toUpperCase(),
+        codigoEmpresa: cleanText(form.get("codigoEmpresa")).toUpperCase()
+    };
+
+    const validationError = validateRegister(payload);
+    if (validationError) {
+        showMessage(authMessage, validationError, "error");
+        return;
+    }
+
+    setAuthLoading(formElement, true, "Creando cuenta...");
     try {
         const user = await api.request("/api/auth/register", {
             method: "POST",
             body: JSON.stringify({
-                nombre: form.get("nombre"),
-                email: form.get("email"),
-                password: form.get("password"),
-                dni: form.get("dni"),
-                codigoEmpresa: form.get("codigoEmpresa")
+                nombre: payload.nombre,
+                email: payload.email,
+                password: payload.password,
+                dni: payload.dni,
+                codigoEmpresa: payload.codigoEmpresa
             })
         });
         setUser(user);
         await bootApp();
     } catch (error) {
         showMessage(authMessage, error.message, "error");
+    } finally {
+        setAuthLoading(formElement, false);
+        updateRegisterState();
     }
+}
+
+function togglePassword(button) {
+    const input = button.previousElementSibling;
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    button.textContent = isHidden ? "Ocultar" : "Mostrar";
+    button.setAttribute("aria-label", isHidden ? "Ocultar contraseña" : "Mostrar contraseña");
+    button.title = isHidden ? "Ocultar contraseña" : "Mostrar contraseña";
+}
+
+function setAuthLoading(form, isLoading, label) {
+    const button = form.querySelector(".auth-submit");
+    if (!button.dataset.defaultText) {
+        button.dataset.defaultText = button.textContent;
+    }
+    button.disabled = isLoading;
+    button.textContent = isLoading ? label : button.dataset.defaultText;
+}
+
+function validateRegister(payload) {
+    if (payload.nombre.length < 3) return "Introduce tu nombre completo.";
+    if (!isValidEmail(payload.email)) return "CORREO NO VÁLIDO";
+    if (payload.password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
+    if (payload.password !== payload.confirmPassword) return "Las contraseñas no coinciden.";
+    if (!isValidDni(payload.dni)) return "DNI INCORRECTO";
+    if (!isValidCompanyCode(payload.codigoEmpresa)) return "EMPRESA INCORRECTA";
+    return "";
+}
+
+function updateRegisterState() {
+    const dni = cleanText(registerDniInput.value).toUpperCase();
+    const companyCode = cleanText(companyCodeInput.value).toUpperCase();
+    const registerEmail = cleanEmail(registerEmailInput.value);
+    const isComplete = dni.length === 9;
+    const isDniValid = isValidDni(dni);
+    const hasRegisterEmail = registerEmail.length > 0;
+    const isRegisterEmailValid = isValidEmail(registerEmail);
+    const isCompanyComplete = companyCode.length === state.companyCodeLength;
+    const isCompanyValid = isValidCompanyCode(companyCode);
+    const submit = registerForm.querySelector(".auth-submit");
+
+    registerDniInput.value = dni;
+    registerEmailInput.value = registerEmail;
+    companyCodeInput.value = companyCode;
+    registerEmailInput.classList.toggle("invalid", hasRegisterEmail && !isRegisterEmailValid);
+    registerEmailError.classList.toggle("hidden", !hasRegisterEmail || isRegisterEmailValid);
+    registerDniInput.classList.toggle("invalid", isComplete && !isDniValid);
+    dniError.classList.toggle("hidden", !isComplete || isDniValid);
+    companyCodeInput.classList.toggle("invalid", isCompanyComplete && !isCompanyValid);
+    companyError.classList.toggle("hidden", !isCompanyComplete || isCompanyValid);
+    submit.disabled = !isRegisterEmailValid || !isDniValid || !isCompanyValid;
+}
+
+function isValidDni(dni) {
+    return /^[0-9]{8}[A-Z]$/.test(dni);
+}
+
+function isValidCompanyCode(code) {
+    return state.companyCodes.has(code);
+}
+
+function isValidEmail(email) {
+    return email.includes("@");
+}
+
+function showLoginEmailError(show) {
+    loginEmailInput.classList.toggle("invalid", show);
+    loginEmailError.classList.toggle("hidden", !show);
+}
+
+async function loadCompaniesForRegister() {
+    if (state.companiesLoaded) return;
+    try {
+        const companies = await api.request("/api/companies");
+        const codes = companies.map((company) => company.codigoEmpresa.toUpperCase());
+        state.companyCodes = new Set(codes);
+        state.companyCodeLength = codes[0]?.length || state.companyCodeLength;
+        companyCodeInput.maxLength = state.companyCodeLength;
+        state.companiesLoaded = true;
+    } catch (error) {
+        state.companyCodes = new Set();
+        state.companiesLoaded = true;
+    } finally {
+        updateRegisterState();
+    }
+}
+
+function cleanEmail(value) {
+    return cleanText(value).toLowerCase();
+}
+
+function cleanText(value) {
+    return String(value || "").trim();
 }
 
 function setUser(user) {

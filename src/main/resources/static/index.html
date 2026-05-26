@@ -10,34 +10,80 @@
 <body>
     <section class="auth-view" id="authView">
         <div class="auth-copy">
-            <p class="eyebrow">WiBLE + BlaBlaCar corporativo</p>
-            <h1>Comparte coche hacia la oficina y suma puntos responsables.</h1>
-            <p>Reserva coches repartidos por Madrid o unete a trayectos de companeros de tu empresa.</p>
+            <div class="auth-brand">
+                <span class="logo">CR</span>
+                <div>
+                    <strong>Corporate Ride</strong>
+                    <small>Madrid</small>
+                </div>
+            </div>
+            <p class="eyebrow">Movilidad corporativa compartida</p>
+            <h1>Reserva, comparte y llega a la oficina con menos emisiones.</h1>
+            <p>Accede con tu empresa para encontrar coches disponibles en Madrid, unirte a trayectos de compañeros y sumar puntos responsables.</p>
+            <div class="auth-proof">
+                <span>Coches por empresa</span>
+                <span>Reservas en tiempo real</span>
+                <span>Puntos responsables</span>
+            </div>
         </div>
 
         <div class="auth-card">
+            <div class="auth-card-head">
+                <p class="eyebrow">Acceso seguro</p>
+                <h2 id="authTitle">Bienvenido de nuevo</h2>
+                <p id="authSubtitle">Inicia sesión para gestionar tus trayectos corporativos.</p>
+            </div>
+
             <div class="tabs">
-                <button class="tab active" id="loginTab" type="button">Login</button>
-                <button class="tab" id="registerTab" type="button">Registro</button>
+                <button class="tab active" id="loginTab" type="button">Iniciar sesión</button>
+                <button class="tab" id="registerTab" type="button">Crear cuenta</button>
             </div>
 
             <form id="loginForm" class="auth-form">
-                <label>Email<input name="email" type="email" value="ana@telefonica.test" required></label>
-                <label>Password<input name="password" type="password" value="1234" required></label>
-                <button class="button primary" type="submit">Entrar</button>
+                <label>Correo corporativo
+                    <input id="loginEmail" name="email" type="text" inputmode="email" value="ana@telefonica.test" autocomplete="email" required>
+                    <span class="field-error hidden" id="loginEmailError">CORREO NO VÁLIDO</span>
+                </label>
+                <label>Contraseña
+                    <span class="password-field">
+                        <input name="password" type="password" value="1234" autocomplete="current-password" required>
+                        <button class="password-toggle" type="button" aria-label="Mostrar contraseña" title="Mostrar contraseña">Mostrar</button>
+                    </span>
+                </label>
+                <button class="button primary auth-submit" type="submit">Entrar</button>
             </form>
 
             <form id="registerForm" class="auth-form hidden">
-                <label>Nombre<input name="nombre" type="text" required></label>
-                <label>Email<input name="email" type="email" required></label>
-                <label>Password<input name="password" type="password" minlength="4" required></label>
-                <label>DNI<input name="dni" type="text" required></label>
-                <label>Codigo empresa<input name="codigoEmpresa" type="text" placeholder="TEL2026" required></label>
-                <button class="button primary" type="submit">Crear cuenta</button>
+                <label>Nombre completo<input name="nombre" type="text" autocomplete="name" minlength="3" required></label>
+                <label>Correo corporativo
+                    <input id="registerEmail" name="email" type="text" inputmode="email" autocomplete="email" required>
+                    <span class="field-error hidden" id="registerEmailError">CORREO NO VÁLIDO</span>
+                </label>
+                <label>Contraseña
+                    <span class="password-field">
+                        <input name="password" type="password" autocomplete="new-password" minlength="6" required>
+                        <button class="password-toggle" type="button" aria-label="Mostrar contraseña" title="Mostrar contraseña">Mostrar</button>
+                    </span>
+                </label>
+                <label>Repetir contraseña
+                    <span class="password-field">
+                        <input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required>
+                        <button class="password-toggle" type="button" aria-label="Mostrar contraseña" title="Mostrar contraseña">Mostrar</button>
+                    </span>
+                </label>
+                <label>DNI
+                    <input id="registerDni" name="dni" type="text" maxlength="9" placeholder="12345678A" autocomplete="off" required>
+                    <span class="field-error hidden" id="dniError">DNI INCORRECTO</span>
+                </label>
+                <label>Código de empresa
+                    <input id="companyCode" name="codigoEmpresa" type="text" maxlength="7" placeholder="TEL2026" autocomplete="organization" required>
+                    <span class="field-error hidden" id="companyError">EMPRESA INCORRECTA</span>
+                </label>
+                <button class="button primary auth-submit" type="submit">Crear cuenta</button>
             </form>
 
             <p class="hint">
-                Codigos: TEL2026, REP2026, END2026, ACC2026.
+                Códigos disponibles: TEL2026, REP2026, END2026 y ACC2026.
             </p>
             <p class="message" id="authMessage"></p>
         </div>
