@@ -39,6 +39,10 @@ public class ReservationParticipant {
 
     private LocalDateTime completedAt;
 
+    private Boolean ready = false;
+
+    private LocalDateTime readyAt;
+
     public ReservationParticipant() {
     }
 
@@ -93,5 +97,21 @@ public class ReservationParticipant {
 
     public void setCompletedAt(LocalDateTime completedAt) {
         this.completedAt = completedAt;
+    }
+
+    public boolean isReady() {
+        return Boolean.TRUE.equals(ready);
+    }
+
+    public void setReady(boolean ready) {
+        this.ready = ready;
+    }
+
+    public LocalDateTime getReadyAt() {
+        return readyAt;
+    }
+
+    public void setReadyAt(LocalDateTime readyAt) {
+        this.readyAt = readyAt;
     }
 }

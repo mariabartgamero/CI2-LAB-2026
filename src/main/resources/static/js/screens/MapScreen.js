@@ -3,7 +3,7 @@ import { renderCarBottomSheet } from "../components/CarBottomSheet.js";
 import { closeMenuDrawer, renderMenuDrawer } from "../components/MenuDrawer.js";
 import { getVisibleCars } from "../services/carService.js";
 import { getCompanyOffices } from "../services/officeService.js";
-import { cancelReservation, getActiveReservation, getUserReservations, joinReservation, reserveCar, startReservation } from "../services/reservationService.js";
+import { cancelReservation, finishReservation, getActiveReservation, getUserReservations, joinReservation, markReservationReady, reserveCar, startReservation } from "../services/reservationService.js";
 import { getUser } from "../services/userService.js";
 
 const screen = {
@@ -18,7 +18,7 @@ const screen = {
     activeReservation: null,
     reservations: [],
     sessionId: 0,
-    autoRefreshTimer: null
+    activeReservationPollTimer: null
 };
 
 export async function initMapScreen(user, logout) {
@@ -92,9 +92,16 @@ async function refresh(sessionId = screen.sessionId) {
     renderCars();
     renderActiveReservationCard(
         document.querySelector("#activeReservation"),
-        screen.activeReservation
+        screen.activeReservation,
+        {
+            currentUser: screen.user,
+            onStart: handleStartReservation,
+            onReady: handleReadyReservation,
+            onCancel: handleCancelReservation,
+            onFinish: handleFinishReservation
+        }
     );
-    scheduleAutoCompletionRefresh(screen.activeReservation);
+    scheduleActiveReservationPolling(screen.activeReservation);
     document.querySelector("#mapSummary").textContent = `${cars.length} coches cerca de ti`;
 }
 
@@ -108,7 +115,7 @@ function clearMapScreen() {
     screen.selectedCar = null;
     screen.activeReservation = null;
     screen.reservations = [];
-    clearAutoRefresh();
+    clearActiveReservationPolling();
 
     clearNode("#userPill");
     clearNode("#activeReservation", true);
@@ -213,8 +220,9 @@ function openMenu() {
 }
 
 async function handleCancelReservation(reservation) {
+    const reservationId = typeof reservation === "number" ? reservation : reservation.id;
     try {
-        await cancelReservation(reservation.id, screen.user.id);
+        await cancelReservation(reservationId, screen.user.id);
         showToast("Reserva cancelada");
         await refresh();
     } catch (error) {
@@ -223,9 +231,30 @@ async function handleCancelReservation(reservation) {
 }
 
 async function handleStartReservation(reservation) {
+    const reservationId = typeof reservation === "number" ? reservation : reservation.id;
     try {
-        await startReservation(reservation.id, screen.user.id);
+        await startReservation(reservationId, screen.user.id);
         showToast("Trayecto iniciado");
+        await refresh();
+    } catch (error) {
+        showToast(error.message, "error");
+    }
+}
+
+async function handleReadyReservation(reservationId) {
+    try {
+        await markReservationReady(reservationId, screen.user.id);
+        showToast("Estas listo para salir");
+        await refresh();
+    } catch (error) {
+        showToast(error.message, "error");
+    }
+}
+
+async function handleFinishReservation(reservationId) {
+    try {
+        await finishReservation(reservationId, screen.user.id);
+        showToast("Trayecto finalizado");
         await refresh();
     } catch (error) {
         showToast(error.message, "error");
@@ -283,23 +312,21 @@ function showToast(message, type = "success") {
     setTimeout(() => toast.classList.add("hidden"), 2600);
 }
 
-function scheduleAutoCompletionRefresh(reservation) {
-    clearAutoRefresh();
-    if (!reservation || reservation.estado !== "EN_CURSO") return;
+function scheduleActiveReservationPolling(reservation) {
+    clearActiveReservationPolling();
+    if (!reservation || !["PENDIENTE", "EN_CURSO"].includes(reservation.estado)) return;
 
-    const arrivalTime = new Date(reservation.horaEstimadaLlegada).getTime();
-    const delay = Math.max(1000, arrivalTime - Date.now() + 1000);
-    screen.autoRefreshTimer = setTimeout(async () => {
+    screen.activeReservationPollTimer = setTimeout(async () => {
         try {
             await refresh();
         } catch (error) {
             showToast(error.message, "error");
         }
-    }, delay);
+    }, 5000);
 }
 
-function clearAutoRefresh() {
-    if (!screen.autoRefreshTimer) return;
-    clearTimeout(screen.autoRefreshTimer);
-    screen.autoRefreshTimer = null;
+function clearActiveReservationPolling() {
+    if (!screen.activeReservationPollTimer) return;
+    clearTimeout(screen.activeReservationPollTimer);
+    screen.activeReservationPollTimer = null;
 }

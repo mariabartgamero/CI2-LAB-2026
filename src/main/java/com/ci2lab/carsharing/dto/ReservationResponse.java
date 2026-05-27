@@ -39,7 +39,10 @@ public record ReservationResponse(
                 reservation.getEmpresa().getId(),
                 reservation.getEmpresa().getNombre(),
                 reservation.getUsuarioCreador().getId(),
-                reservation.getUsuariosApuntados().stream().map(OccupantResponse::from).toList(),
+                reservation.getParticipantes().stream()
+                        .filter(participant -> participant.getStatus() == ParticipantStatus.ACTIVE)
+                        .map(OccupantResponse::from)
+                        .toList(),
                 reservation.getHoraSalida(),
                 reservation.getHoraEstimadaLlegada(),
                 reservation.getOrigenLatitud(),

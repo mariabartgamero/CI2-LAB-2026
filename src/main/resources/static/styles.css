@@ -491,7 +491,7 @@ input.invalid {
     display: block;
 }
 
-.active-countdown {
+.active-trip-timer {
     color: var(--cyan-dark);
     font-size: 15px;
     margin-top: 7px;

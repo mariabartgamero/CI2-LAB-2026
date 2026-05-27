@@ -41,9 +41,14 @@ public class ReservationController {
         return reservationService.start(id, request.userId());
     }
 
+    @PostMapping("/{id}/ready")
+    public ReservationResponse ready(@PathVariable Long id, @Valid @RequestBody UserActionRequest request) {
+        return reservationService.ready(id, request.userId());
+    }
+
     @PostMapping("/{id}/finish")
-    public ReservationResponse finish(@PathVariable Long id) {
-        return reservationService.finish(id);
+    public ReservationResponse finish(@PathVariable Long id, @Valid @RequestBody UserActionRequest request) {
+        return reservationService.finish(id, request.userId());
     }
 
     @PostMapping("/{id}/cancel")

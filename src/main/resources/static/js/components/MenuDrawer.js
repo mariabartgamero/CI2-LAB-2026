@@ -1,6 +1,6 @@
 import { formatDateTime } from "../utils/dateTime.js";
 
-export function renderMenuDrawer(container, { user, reservations, activeReservation }, onStart, onCancel, onLogout, onClose) {
+export function renderMenuDrawer(container, { user, reservations }, onStart, onCancel, onLogout, onClose) {
     const completed = reservations.filter((reservation) => isCompleted(reservationStatusForUser(reservation)));
     const cancelled = reservations.filter((reservation) => isCancelled(reservationStatusForUser(reservation)));
 
@@ -27,10 +27,6 @@ export function renderMenuDrawer(container, { user, reservations, activeReservat
 
             <section class="drawer-section">
                 <h3>Reservas</h3>
-                ${activeReservation ? reservationCard(activeReservation, {
-                    canStart: canStartReservation(activeReservation),
-                    canCancel: canCancelReservation(activeReservation)
-                }) : "<p class='empty-copy'>No tienes reserva activa.</p>"}
                 <h4>Completadas</h4>
                 ${completed.length ? completed.map((reservation) => reservationCard(reservation)).join("") : "<p class='empty-copy'>Sin reservas completadas.</p>"}
                 <h4>Canceladas</h4>
@@ -44,12 +40,6 @@ export function renderMenuDrawer(container, { user, reservations, activeReservat
     container.querySelector(".drawer-backdrop").addEventListener("click", onClose);
     container.querySelector(".drawer-close").addEventListener("click", onClose);
     container.querySelector(".logout-action").addEventListener("click", onLogout);
-    container.querySelectorAll("[data-start-reservation]").forEach((button) => {
-        button.addEventListener("click", () => onStart(Number(button.dataset.startReservation)));
-    });
-    container.querySelectorAll("[data-cancel-reservation]").forEach((button) => {
-        button.addEventListener("click", () => onCancel(Number(button.dataset.cancelReservation)));
-    });
 }
 
 export function closeMenuDrawer(container) {
@@ -57,8 +47,7 @@ export function closeMenuDrawer(container) {
     container.innerHTML = "";
 }
 
-function reservationCard(reservation, options = {}) {
-    const { canStart = false, canCancel = false } = options;
+function reservationCard(reservation) {
     return `
         <article class="drawer-reservation">
             <strong>${reservation.matricula} · Mercedes EQA Electrico</strong>
@@ -66,26 +55,12 @@ function reservationCard(reservation, options = {}) {
             <span>Llegada estimada: ${formatDateTime(reservation.horaEstimadaLlegada)}</span>
             <span>Estado: ${statusLabel(reservationStatusForUser(reservation))}</span>
             <span>${reservation.plazasOcupadas}/5 ocupantes · ${reservation.puntosPrevistos} puntos</span>
-            ${canStart ? `<button class="button primary" data-start-reservation="${reservation.id}" type="button">Iniciar trayecto</button>` : ""}
-            ${canCancel ? `<button class="button danger" data-cancel-reservation="${reservation.id}" type="button">Cancelar reserva</button>` : ""}
         </article>
     `;
 }
 
 function reservationStatusForUser(reservation) {
     return reservation.estadoUsuario ?? reservation.estado;
-}
-
-function canCancelReservation(reservation) {
-    return isPending(reservationStatusForUser(reservation));
-}
-
-function canStartReservation(reservation) {
-    return isPending(reservationStatusForUser(reservation));
-}
-
-function isPending(status) {
-    return status === "PENDIENTE" || status === "ACTIVE";
 }
 
 function isCompleted(status) {

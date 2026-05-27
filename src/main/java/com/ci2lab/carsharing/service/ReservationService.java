@@ -19,7 +19,6 @@ import com.ci2lab.carsharing.repository.UserRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -144,11 +143,15 @@ public class ReservationService {
     public ReservationResponse start(Long reservationId, Long userId) {
         Reservation reservation = findReservation(reservationId);
         validateParticipant(reservation, userId);
+        validateCreator(reservation, userId);
         if (!isBookable(reservation)) {
             throw new AppException("Solo se pueden iniciar reservas pendientes");
         }
         if (reservation.getHoraEstimadaLlegada().isBefore(LocalDateTime.now())) {
             throw new AppException("Esta reserva ya ha superado su hora estimada de llegada");
+        }
+        if (!canStartTrip(reservation)) {
+            throw new AppException("Aun no puedes iniciar el viaje: faltan pasajeros por marcarse como listos");
         }
 
         long durationMinutes = Math.max(1, Duration.between(
@@ -164,8 +167,36 @@ public class ReservationService {
     }
 
     @Transactional
-    public ReservationResponse finish(Long reservationId) {
-        throw new AppException("El trayecto se finaliza automaticamente al cumplirse la hora estimada de llegada");
+    public ReservationResponse ready(Long reservationId, Long userId) {
+        Reservation reservation = findReservation(reservationId);
+        validateParticipant(reservation, userId);
+        if (!isBookable(reservation)) {
+            throw new AppException("Solo puedes marcarte listo antes de iniciar el trayecto");
+        }
+        if (reservation.getUsuarioCreador().getId().equals(userId)) {
+            throw new AppException("El conductor no necesita marcarse como listo");
+        }
+
+        ReservationParticipant participant = reservationParticipantRepository
+                .findFirstByReservationIdAndUserIdAndStatus(reservationId, userId, ParticipantStatus.ACTIVE)
+                .orElseThrow(() -> new AppException("No tienes una participacion activa en esta reserva"));
+        participant.setReady(true);
+        participant.setReadyAt(LocalDateTime.now());
+        return ReservationResponse.from(reservation);
+    }
+
+    @Transactional
+    public ReservationResponse finish(Long reservationId, Long userId) {
+        Reservation reservation = findReservation(reservationId);
+        validateParticipant(reservation, userId);
+        validateCreator(reservation, userId);
+        if (!isInProgress(reservation)) {
+            throw new AppException("Solo se pueden finalizar trayectos en curso");
+        }
+
+        reservation.setHoraEstimadaLlegada(LocalDateTime.now());
+        completeReservation(reservation);
+        return ReservationResponse.from(reservation);
     }
 
     @Transactional
@@ -215,18 +246,7 @@ public class ReservationService {
 
     @Transactional
     public void completeExpiredReservations() {
-        LocalDateTime now = LocalDateTime.now();
-        List<Reservation> expiredReservations = reservationRepository.findByEstadoAndTrayectoIniciadoTrueAndHoraEstimadaLlegadaLessThanEqual(
-                ReservationStatus.ACTIVE,
-                now
-        );
-        expiredReservations.forEach(this::completeReservation);
-    }
-
-    @Scheduled(fixedDelay = 10000)
-    @Transactional
-    public void completeExpiredReservationsOnSchedule() {
-        completeExpiredReservations();
+        // Los trayectos en curso se finalizan manualmente desde la app.
     }
 
     private User findUser(Long id) {
@@ -284,6 +304,23 @@ public class ReservationService {
         if (!isParticipant) {
             throw new AppException("No formas parte de esta reserva");
         }
+    }
+
+    private void validateCreator(Reservation reservation, Long userId) {
+        if (!reservation.getUsuarioCreador().getId().equals(userId)) {
+            throw new AppException("Solo el conductor puede iniciar este viaje");
+        }
+    }
+
+    private boolean canStartTrip(Reservation reservation) {
+        if (!reservation.getHoraSalida().isAfter(LocalDateTime.now())) {
+            return true;
+        }
+        List<ReservationParticipant> passengers = reservation.getParticipantes().stream()
+                .filter(participant -> participant.getStatus() == ParticipantStatus.ACTIVE)
+                .filter(participant -> !participant.getUser().getId().equals(reservation.getUsuarioCreador().getId()))
+                .toList();
+        return !passengers.isEmpty() && passengers.stream().allMatch(ReservationParticipant::isReady);
     }
 
     private boolean isBookable(Reservation reservation) {

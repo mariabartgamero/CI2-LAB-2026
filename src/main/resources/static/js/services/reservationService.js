@@ -35,9 +35,17 @@ export function startReservation(reservationId, userId) {
     });
 }
 
-export function finishReservation(reservationId) {
+export function markReservationReady(reservationId, userId) {
+    return apiRequest(`/api/reservations/${reservationId}/ready`, {
+        method: "POST",
+        body: JSON.stringify({ userId })
+    });
+}
+
+export function finishReservation(reservationId, userId) {
     return apiRequest(`/api/reservations/${reservationId}/finish`, {
-        method: "POST"
+        method: "POST",
+        body: JSON.stringify({ userId })
     });
 }
 
