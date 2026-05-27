@@ -4,7 +4,7 @@ import { initMapScreen, resetMapScreen } from "./js/screens/MapScreen.js";
 
 const state = {
     user: JSON.parse(localStorage.getItem("activeUser") || "null"),
-    companyCodes: new Set(),
+    companyCodes: new Set(["TEL2026", "REP2026", "END2026", "ACC2026"]),
     companyCodeLength: 7,
     companiesLoaded: false
 };
@@ -161,10 +161,12 @@ async function loadCompaniesForRegister() {
         const companies = await apiRequest("/api/companies");
         const codes = companies.map((company) => company.codigoEmpresa.toUpperCase());
         state.companyCodes = new Set(codes);
-        state.companyCodeLength = codes[0]?.length || state.companyCodeLength;
+        state.companyCodeLength = Math.max(...codes.map((code) => code.length), state.companyCodeLength);
         companyCodeInput.maxLength = state.companyCodeLength;
     } catch (error) {
-        state.companyCodes = new Set();
+        state.companyCodes = new Set(["TEL2026", "REP2026", "END2026", "ACC2026"]);
+        state.companyCodeLength = 7;
+        companyCodeInput.maxLength = state.companyCodeLength;
     } finally {
         state.companiesLoaded = true;
         updateRegisterState();

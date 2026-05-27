@@ -1,0 +1,147 @@
+INSERT INTO companies (id, nombre, codigo_empresa) VALUES
+    (1, 'Telefonica', 'TEL2026'),
+    (2, 'Repsol', 'REP2026'),
+    (3, 'Endesa', 'END2026'),
+    (4, 'Accenture', 'ACC2026')
+ON CONFLICT (id) DO UPDATE SET
+    codigo_empresa = EXCLUDED.codigo_empresa;
+
+INSERT INTO offices (id, nombre, direccion, latitud, longitud, company_id) VALUES
+    (1, 'Oficina Tres Cantos', 'Tres Cantos, Madrid', 40.600900, -3.708000, 1),
+    (2, 'Telefonica Gran Via', 'Gran Via 28, Madrid', 40.420220, -3.701730, 1),
+    (3, 'Repsol Mendez Alvaro', 'Calle de Mendez Alvaro 44, Madrid', 40.395020, -3.684420, 2),
+    (4, 'Repsol Tres Cantos', 'Tres Cantos, Madrid', 40.600810, -3.708010, 2),
+    (5, 'Endesa Ribera del Loira', 'Calle Ribera del Loira 60, Madrid', 40.461650, -3.616850, 3),
+    (6, 'Endesa Campo de las Naciones', 'Avenida de la Capital de Espana, Madrid', 40.463890, -3.616720, 3),
+    (7, 'Accenture Torre Picasso', 'Plaza Pablo Ruiz Picasso, Madrid', 40.450320, -3.692240, 4),
+    (8, 'Accenture Castellana', 'Paseo de la Castellana, Madrid', 40.433720, -3.687930, 4)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO app_users (id, nombre, email, user_password, dni, company_id, codigo_empresa, puntos_responsables) VALUES
+    (1, 'Ana Lopez', 'ana@telefonica.test', '1234', '11111111A', 1, 'TEL2026', 120),
+    (2, 'Carlos Martin', 'carlos@telefonica.test', '1234', '22222222B', 1, 'TEL2026', 80),
+    (3, 'Marta Ruiz', 'marta@telefonica.test', '1234', '33333333C', 1, 'TEL2026', 35),
+    (4, 'Diego Santos', 'diego@repsol.test', '1234', '44444444D', 2, 'REP2026', 60),
+    (5, 'Lucia Perez', 'lucia@repsol.test', '1234', '55555555E', 2, 'REP2026', 90),
+    (6, 'Javier Cano', 'javier@repsol.test', '1234', '66666666F', 2, 'REP2026', 30),
+    (7, 'Sara Nieto', 'sara@repsol.test', '1234', '77777777G', 2, 'REP2026', 20),
+    (8, 'Hugo Molina', 'hugo@repsol.test', '1234', '88888888H', 2, 'REP2026', 10),
+    (9, 'Nerea Gil', 'nerea@endesa.test', '1234', '99999999J', 3, 'END2026', 45),
+    (10, 'Pablo Vega', 'pablo@accenture.test', '1234', '10101010K', 4, 'ACC2026', 110),
+    (11, 'Elena Torres', 'elena@accenture.test', '1234', '12121212L', 4, 'ACC2026', 70)
+ON CONFLICT (id) DO UPDATE SET
+    codigo_empresa = EXCLUDED.codigo_empresa;
+
+INSERT INTO cars (id, matricula, bateria, estado, latitud, longitud, plazas_totales) VALUES
+    -- Oficinas
+    (1, '3001-MDR', 91, 'LIBRE', 40.600750, -3.708180, 5),
+    (2, '3002-MDR', 76, 'LIBRE', 40.601120, -3.707620, 5),
+    (3, '3003-MDR', 84, 'LIBRE', 40.420360, -3.701520, 5),
+    (4, '3004-MDR', 69, 'LIBRE', 40.419980, -3.702050, 5),
+    (5, '3005-MDR', 88, 'LIBRE', 40.395240, -3.684150, 5),
+    (6, '3006-MDR', 73, 'LIBRE', 40.394780, -3.684760, 5),
+    (7, '3007-MDR', 95, 'LIBRE', 40.600620, -3.707810, 5),
+    (8, '3008-MDR', 61, 'LIBRE', 40.601000, -3.708350, 5),
+    (9, '3009-MDR', 82, 'LIBRE', 40.461870, -3.616540, 5),
+    (10, '3010-MDR', 77, 'LIBRE', 40.461410, -3.617060, 5),
+    (11, '3011-MDR', 86, 'LIBRE', 40.464110, -3.616480, 5),
+    (12, '3012-MDR', 64, 'LIBRE', 40.463620, -3.617010, 5),
+    (13, '3013-MDR', 79, 'LIBRE', 40.450510, -3.692010, 5),
+    (14, '3014-MDR', 92, 'LIBRE', 40.450080, -3.692510, 5),
+    (15, '3015-MDR', 74, 'LIBRE', 40.433920, -3.687650, 5),
+    (16, '3016-MDR', 89, 'LIBRE', 40.433500, -3.688170, 5),
+
+    -- Madrid urbano dentro de M-30, distribución más realista
+    (17, '3017-MDR', 67, 'LIBRE', 40.418920, -3.705730, 5),
+    (18, '3018-MDR', 93, 'LIBRE', 40.412960, -3.706890, 5),
+    (19, '3019-MDR', 58, 'LIBRE', 40.421740, -3.698340, 5),
+    (20, '3020-MDR', 81, 'LIBRE', 40.427480, -3.703180, 5),
+    (21, '3021-MDR', 72, 'LIBRE', 40.432060, -3.706950, 5),
+    (22, '3022-MDR', 87, 'LIBRE', 40.437510, -3.701470, 5),
+    (23, '3023-MDR', 66, 'LIBRE', 40.440880, -3.696250, 5),
+    (24, '3024-MDR', 78, 'LIBRE', 40.435790, -3.690840, 5),
+    (25, '3025-MDR', 94, 'LIBRE', 40.430340, -3.684710, 5),
+    (26, '3026-MDR', 55, 'LIBRE', 40.425180, -3.681290, 5),
+    (27, '3027-MDR', 83, 'LIBRE', 40.419480, -3.677840, 5),
+    (28, '3028-MDR', 70, 'LIBRE', 40.413770, -3.674590, 5),
+    (29, '3029-MDR', 90, 'LIBRE', 40.407820, -3.678410, 5),
+    (30, '3030-MDR', 62, 'LIBRE', 40.401960, -3.686950, 5),
+    (31, '3031-MDR', 75, 'LIBRE', 40.397680, -3.693120, 5),
+    (32, '3032-MDR', 88, 'LIBRE', 40.398940, -3.701620, 5),
+    (33, '3033-MDR', 59, 'LIBRE', 40.403270, -3.708580, 5),
+    (34, '3034-MDR', 96, 'LIBRE', 40.409610, -3.714220, 5),
+    (35, '3035-MDR', 68, 'LIBRE', 40.416240, -3.716870, 5),
+    (36, '3036-MDR', 80, 'LIBRE', 40.423810, -3.714490, 5),
+    (37, '3037-MDR', 71, 'LIBRE', 40.430750, -3.711680, 5),
+    (38, '3038-MDR', 85, 'LIBRE', 40.438190, -3.710420, 5),
+    (39, '3039-MDR', 63, 'LIBRE', 40.444680, -3.704950, 5),
+    (40, '3040-MDR', 92, 'LIBRE', 40.449870, -3.698690, 5),
+
+    (41, '3041-MDR', 57, 'LIBRE', 40.452930, -3.690740, 5),
+    (42, '3042-MDR', 79, 'LIBRE', 40.448610, -3.684390, 5),
+    (43, '3043-MDR', 86, 'LIBRE', 40.442370, -3.681180, 5),
+    (44, '3044-MDR', 73, 'LIBRE', 40.436120, -3.678260, 5),
+    (45, '3045-MDR', 69, 'LIBRE', 40.429740, -3.674820, 5),
+    (46, '3046-MDR', 91, 'LIBRE', 40.423020, -3.670950, 5),
+    (47, '3047-MDR', 64, 'LIBRE', 40.415940, -3.669780, 5),
+    (48, '3048-MDR', 82, 'LIBRE', 40.409360, -3.672490, 5),
+    (49, '3049-MDR', 77, 'LIBRE', 40.404120, -3.676850, 5),
+    (50, '3050-MDR', 60, 'LIBRE', 40.400360, -3.683470, 5),
+    (51, '3051-MDR', 89, 'LIBRE', 40.397260, -3.689820, 5),
+    (52, '3052-MDR', 74, 'LIBRE', 40.395840, -3.697360, 5),
+    (53, '3053-MDR', 93, 'LIBRE', 40.399480, -3.704880, 5),
+    (54, '3054-MDR', 56, 'LIBRE', 40.405420, -3.711530, 5),
+    (55, '3055-MDR', 81, 'LIBRE', 40.411880, -3.717940, 5),
+    (56, '3056-MDR', 70, 'LIBRE', 40.419740, -3.720630, 5),
+    (57, '3057-MDR', 84, 'LIBRE', 40.427930, -3.718910, 5),
+    (58, '3058-MDR', 65, 'LIBRE', 40.435670, -3.715860, 5),
+    (59, '3059-MDR', 78, 'LIBRE', 40.443280, -3.711170, 5),
+    (60, '3060-MDR', 87, 'LIBRE', 40.450260, -3.705540, 5),
+
+    (61, '3061-MDR', 62, 'LIBRE', 40.454640, -3.697220, 5),
+    (62, '3062-MDR', 95, 'LIBRE', 40.457310, -3.688640, 5),
+    (63, '3063-MDR', 76, 'LIBRE', 40.453780, -3.680790, 5),
+    (64, '3064-MDR', 59, 'LIBRE', 40.446940, -3.675280, 5),
+    (65, '3065-MDR', 88, 'LIBRE', 40.439460, -3.671830, 5),
+    (66, '3066-MDR', 71, 'LIBRE', 40.431970, -3.668760, 5),
+    (67, '3067-MDR', 83, 'LIBRE', 40.424610, -3.666820, 5),
+    (68, '3068-MDR', 67, 'LIBRE', 40.417280, -3.666140, 5),
+    (69, '3069-MDR', 90, 'LIBRE', 40.410260, -3.668970, 5),
+    (70, '3070-MDR', 54, 'LIBRE', 40.403650, -3.674260, 5),
+    (71, '3071-MDR', 80, 'LIBRE', 40.399180, -3.681770, 5),
+    (72, '3072-MDR', 75, 'LIBRE', 40.396120, -3.690260, 5),
+    (73, '3073-MDR', 92, 'LIBRE', 40.396940, -3.699570, 5),
+    (74, '3074-MDR', 68, 'LIBRE', 40.402570, -3.706230, 5),
+    (75, '3075-MDR', 86, 'LIBRE', 40.408930, -3.712770, 5),
+    (76, '3076-MDR', 61, 'LIBRE', 40.416730, -3.713960, 5),
+    (77, '3077-MDR', 79, 'LIBRE', 40.423420, -3.709840, 5),
+    (78, '3078-MDR', 94, 'LIBRE', 40.429120, -3.704760, 5),
+    (79, '3079-MDR', 72, 'LIBRE', 40.434860, -3.699480, 5),
+    (80, '3080-MDR', 85, 'LIBRE', 40.440250, -3.694760, 5),
+
+    (81, '3081-MDR', 58, 'LIBRE', 40.447480, -3.690310, 5),
+    (82, '3082-MDR', 77, 'LIBRE', 40.452160, -3.684170, 5),
+    (83, '3083-MDR', 89, 'LIBRE', 40.449120, -3.677740, 5),
+    (84, '3084-MDR', 63, 'LIBRE', 40.441670, -3.673620, 5),
+    (85, '3085-MDR', 91, 'LIBRE', 40.433460, -3.670310, 5),
+    (86, '3086-MDR', 66, 'LIBRE', 40.426210, -3.668020, 5),
+    (87, '3087-MDR', 82, 'LIBRE', 40.418640, -3.667470, 5),
+    (88, '3088-MDR', 74, 'LIBRE', 40.411470, -3.670830, 5),
+    (89, '3089-MDR', 96, 'LIBRE', 40.405680, -3.676290, 5),
+    (90, '3090-MDR', 57, 'LIBRE', 40.401430, -3.684620, 5),
+    (91, '3091-MDR', 73, 'LIBRE', 40.399820, -3.694910, 5),
+    (92, '3092-MDR', 88, 'LIBRE', 40.402930, -3.702850, 5),
+    (93, '3093-MDR', 69, 'LIBRE', 40.409570, -3.707960, 5),
+    (94, '3094-MDR', 81, 'LIBRE', 40.416180, -3.709460, 5),
+    (95, '3095-MDR', 60, 'LIBRE', 40.422940, -3.705960, 5),
+    (96, '3096-MDR', 93, 'LIBRE', 40.429670, -3.699890, 5),
+    (97, '3097-MDR', 76, 'LIBRE', 40.436480, -3.693580, 5),
+    (98, '3098-MDR', 84, 'LIBRE', 40.443950, -3.687420, 5),
+    (99, '3099-MDR', 71, 'LIBRE', 40.450840, -3.681460, 5),
+    (100, '3100-MDR', 87, 'LIBRE', 40.456280, -3.675960, 5)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('companies', 'id'), COALESCE((SELECT MAX(id) FROM companies), 1), true);
+SELECT setval(pg_get_serial_sequence('offices', 'id'), COALESCE((SELECT MAX(id) FROM offices), 1), true);
+SELECT setval(pg_get_serial_sequence('app_users', 'id'), COALESCE((SELECT MAX(id) FROM app_users), 1), true);
+SELECT setval(pg_get_serial_sequence('cars', 'id'), COALESCE((SELECT MAX(id) FROM cars), 1), true);
