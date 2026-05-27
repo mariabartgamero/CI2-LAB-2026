@@ -1,15 +1,17 @@
 export const API_BASE_URL = window.location.port === "8080"
     ? window.location.origin
-    : "http://localhost:8080";
+    : `http://${window.location.hostname}:8080`;
 
 export async function apiRequest(path, options = {}) {
     const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+    const headers = {
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(options.headers || {})
+    };
+
     const response = await fetch(url, {
         ...options,
-        headers: {
-            "Content-Type": "application/json",
-            ...(options.headers || {})
-        }
+        headers
     });
     const text = await response.text();
     const data = text ? JSON.parse(text) : null;

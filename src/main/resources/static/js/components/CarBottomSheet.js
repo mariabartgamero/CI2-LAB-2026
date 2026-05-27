@@ -17,10 +17,13 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
     const metrics = tripMetrics(car, selectedOffice);
     const isAvailable = car.estado === "LIBRE";
     const hasReservation = Boolean(car.reserva);
+    const reservationStatus = hasReservation ? car.reserva.estado : null;
+    const isBookableReservation = reservationStatus === "PENDIENTE" || reservationStatus === "ACTIVE";
     const occupants = hasReservation ? car.reserva.usuariosApuntados ?? [] : [];
     const isSelectedCarMyActiveTrip = activeReservation && sameId(activeReservation.cocheId, car.id);
     const isAlreadyOccupant = occupants.some((occupant) => sameId(occupant.id, currentUser.id)) || isSelectedCarMyActiveTrip;
-    const canJoin = hasReservation && car.reserva.estado === "ACTIVE" && car.plazasDisponibles > 0 && !isAlreadyOccupant && !activeReservation;
+    const canJoin = hasReservation && isBookableReservation && car.plazasDisponibles > 0 && !isAlreadyOccupant && !activeReservation;
+    const canCancel = isAlreadyOccupant && isBookableReservation;
     const hasOtherActiveReservation = activeReservation && !isSelectedCarMyActiveTrip;
     const defaultStart = defaultStartTimeValue();
     const arrival = estimatedArrivalLabel(defaultStart, metrics.minutes);
@@ -82,7 +85,7 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
             <p class="sheet-note">Reserva con 12 h o menos · Max. 1 reserva por persona al dia.</p>
             <p class="message error hidden" id="sheetError"></p>
         ` : ""}
-        ${isAlreadyOccupant ? `<button class="button danger cancel-trip-action" type="button">Cancelar viaje</button>` : ""}
+        ${canCancel ? `<button class="button danger cancel-trip-action" type="button">Cancelar viaje</button>` : ""}
         ${!isAlreadyOccupant && canJoin ? `<button class="button primary join-action" type="button">Unirme al viaje</button>` : ""}
         ${!isAlreadyOccupant && isAvailable && !activeReservation ? `<button class="button primary reserve-action" type="button">Reservar</button>` : ""}
         ${!isAlreadyOccupant && hasOtherActiveReservation ? `<button class="button primary" type="button" disabled>Ya tienes una reserva activa</button>` : ""}

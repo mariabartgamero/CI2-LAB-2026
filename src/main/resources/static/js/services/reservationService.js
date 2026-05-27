@@ -28,6 +28,19 @@ export function joinReservation(reservationId, userId) {
     });
 }
 
+export function startReservation(reservationId, userId) {
+    return apiRequest(`/api/reservations/${reservationId}/start`, {
+        method: "POST",
+        body: JSON.stringify({ userId })
+    });
+}
+
+export function finishReservation(reservationId) {
+    return apiRequest(`/api/reservations/${reservationId}/finish`, {
+        method: "POST"
+    });
+}
+
 export function getActiveReservation(userId) {
     return apiRequest(`/api/reservations/user/${userId}/active`);
 }

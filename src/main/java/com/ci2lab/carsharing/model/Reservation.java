@@ -78,6 +78,9 @@ public class Reservation {
     @Column(nullable = false)
     private boolean puntosAsignados = false;
 
+    @Column(name = "trayecto_iniciado")
+    private Boolean trayectoIniciado = false;
+
     @Column(nullable = false)
     private LocalDateTime fechaCreacion = LocalDateTime.now();
 
@@ -195,6 +198,14 @@ public class Reservation {
 
     public void setPuntosAsignados(boolean puntosAsignados) {
         this.puntosAsignados = puntosAsignados;
+    }
+
+    public boolean isTrayectoIniciado() {
+        return Boolean.TRUE.equals(trayectoIniciado);
+    }
+
+    public void setTrayectoIniciado(boolean trayectoIniciado) {
+        this.trayectoIniciado = trayectoIniciado;
     }
 
     public LocalDateTime getFechaCreacion() {

@@ -45,7 +45,7 @@ public record ReservationResponse(
                 reservation.getOrigenLatitud(),
                 reservation.getOrigenLongitud(),
                 OfficeResponse.from(reservation.getDestino()),
-                reservation.getEstado(),
+                visibleStatus(reservation),
                 reservation.getPuntosPrevistos(),
                 reservation.getPlazasOcupadas(),
                 reservation.getCoche().getPlazasTotales() - reservation.getPlazasOcupadas(),
@@ -53,5 +53,21 @@ public record ReservationResponse(
                 participantStatus,
                 reservation.getFechaCreacion()
         );
+    }
+
+    private static ReservationStatus visibleStatus(Reservation reservation) {
+        if (reservation.getEstado() == ReservationStatus.ACTIVE && reservation.isTrayectoIniciado()) {
+            return ReservationStatus.EN_CURSO;
+        }
+        if (reservation.getEstado() == ReservationStatus.ACTIVE) {
+            return ReservationStatus.PENDIENTE;
+        }
+        if (reservation.getEstado() == ReservationStatus.COMPLETED) {
+            return ReservationStatus.FINALIZADA;
+        }
+        if (reservation.getEstado() == ReservationStatus.CANCELLED) {
+            return ReservationStatus.CANCELADA;
+        }
+        return reservation.getEstado();
     }
 }

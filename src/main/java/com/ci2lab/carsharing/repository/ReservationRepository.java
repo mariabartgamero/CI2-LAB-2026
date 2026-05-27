@@ -28,14 +28,36 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     Optional<Reservation> findFirstByUsuariosApuntadosIdAndEstado(Long userId, ReservationStatus status);
 
     @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
+    Optional<Reservation> findFirstByUsuariosApuntadosIdAndEstadoIn(Long userId, Collection<ReservationStatus> statuses);
+
+    @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
     List<Reservation> findByUsuariosApuntadosIdOrderByHoraSalidaDesc(Long userId);
 
     @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
     List<Reservation> findByEstadoAndHoraEstimadaLlegadaLessThanEqual(ReservationStatus status, LocalDateTime now);
 
     @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
+    List<Reservation> findByEstadoInAndHoraEstimadaLlegadaLessThanEqual(
+            Collection<ReservationStatus> statuses,
+            LocalDateTime now
+    );
+
+    @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
+    List<Reservation> findByEstadoAndTrayectoIniciadoTrueAndHoraEstimadaLlegadaLessThanEqual(
+            ReservationStatus status,
+            LocalDateTime now
+    );
+
+    @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
     List<Reservation> findByEstadoAndHoraSalidaLessThanEqualAndHoraEstimadaLlegadaAfter(
             ReservationStatus status,
+            LocalDateTime now,
+            LocalDateTime sameNow
+    );
+
+    @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
+    List<Reservation> findByEstadoInAndHoraSalidaLessThanEqualAndHoraEstimadaLlegadaAfter(
+            Collection<ReservationStatus> statuses,
             LocalDateTime now,
             LocalDateTime sameNow
     );

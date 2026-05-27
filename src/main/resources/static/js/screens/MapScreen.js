@@ -3,7 +3,7 @@ import { renderCarBottomSheet } from "../components/CarBottomSheet.js";
 import { closeMenuDrawer, renderMenuDrawer } from "../components/MenuDrawer.js";
 import { getVisibleCars } from "../services/carService.js";
 import { getCompanyOffices } from "../services/officeService.js";
-import { cancelReservation, getActiveReservation, getUserReservations, joinReservation, reserveCar } from "../services/reservationService.js";
+import { cancelReservation, getActiveReservation, getUserReservations, joinReservation, reserveCar, startReservation } from "../services/reservationService.js";
 import { getUser } from "../services/userService.js";
 
 const screen = {
@@ -17,7 +17,8 @@ const screen = {
     selectedCar: null,
     activeReservation: null,
     reservations: [],
-    sessionId: 0
+    sessionId: 0,
+    autoRefreshTimer: null
 };
 
 export async function initMapScreen(user, logout) {
@@ -28,7 +29,13 @@ export async function initMapScreen(user, logout) {
     renderUserPill();
     initMap();
     bindActions();
-    await refresh(sessionId);
+    try {
+        await refresh(sessionId);
+    } catch (error) {
+        if (sessionId !== screen.sessionId) return;
+        showToast(error.message, "error");
+        document.querySelector("#mapSummary").textContent = "No se pudieron cargar los coches";
+    }
 }
 
 export function resetMapScreen() {
@@ -85,9 +92,9 @@ async function refresh(sessionId = screen.sessionId) {
     renderCars();
     renderActiveReservationCard(
         document.querySelector("#activeReservation"),
-        screen.activeReservation,
-        handleCancelReservation
+        screen.activeReservation
     );
+    scheduleAutoCompletionRefresh(screen.activeReservation);
     document.querySelector("#mapSummary").textContent = `${cars.length} coches cerca de ti`;
 }
 
@@ -101,6 +108,7 @@ function clearMapScreen() {
     screen.selectedCar = null;
     screen.activeReservation = null;
     screen.reservations = [];
+    clearAutoRefresh();
 
     clearNode("#userPill");
     clearNode("#activeReservation", true);
@@ -192,6 +200,10 @@ function openMenu() {
             activeReservation: screen.activeReservation
         },
         async (reservationId) => {
+            await handleStartReservation({ id: reservationId });
+            closeMenuDrawer(document.querySelector("#menuDrawer"));
+        },
+        async (reservationId) => {
             await handleCancelReservation({ id: reservationId });
             closeMenuDrawer(document.querySelector("#menuDrawer"));
         },
@@ -204,6 +216,16 @@ async function handleCancelReservation(reservation) {
     try {
         await cancelReservation(reservation.id, screen.user.id);
         showToast("Reserva cancelada");
+        await refresh();
+    } catch (error) {
+        showToast(error.message, "error");
+    }
+}
+
+async function handleStartReservation(reservation) {
+    try {
+        await startReservation(reservation.id, screen.user.id);
+        showToast("Trayecto iniciado");
         await refresh();
     } catch (error) {
         showToast(error.message, "error");
@@ -259,4 +281,25 @@ function showToast(message, type = "success") {
     toast.textContent = message;
     toast.className = `toast ${type}`;
     setTimeout(() => toast.classList.add("hidden"), 2600);
+}
+
+function scheduleAutoCompletionRefresh(reservation) {
+    clearAutoRefresh();
+    if (!reservation || reservation.estado !== "EN_CURSO") return;
+
+    const arrivalTime = new Date(reservation.horaEstimadaLlegada).getTime();
+    const delay = Math.max(1000, arrivalTime - Date.now() + 1000);
+    screen.autoRefreshTimer = setTimeout(async () => {
+        try {
+            await refresh();
+        } catch (error) {
+            showToast(error.message, "error");
+        }
+    }, delay);
+}
+
+function clearAutoRefresh() {
+    if (!screen.autoRefreshTimer) return;
+    clearTimeout(screen.autoRefreshTimer);
+    screen.autoRefreshTimer = null;
 }

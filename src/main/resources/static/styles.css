@@ -68,11 +68,14 @@ label {
 }
 
 .auth-view {
+    height: 100vh;
+    height: 100svh;
     min-height: 100vh;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
     align-items: center;
     gap: 48px;
+    overflow: hidden;
     padding: 40px;
     background:
         linear-gradient(120deg, rgb(7 26 47 / 96%), rgb(7 26 47 / 72)),
@@ -190,7 +193,28 @@ label {
     border: 1px solid rgb(255 255 255 / 60%);
     border-radius: 14px;
     box-shadow: var(--shadow);
+    max-height: calc(100vh - 80px);
+    max-height: calc(100svh - 80px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 22px;
+    scrollbar-color: var(--cyan) #d9e3ea;
+    scrollbar-width: thin;
+}
+
+.auth-card::-webkit-scrollbar {
+    width: 9px;
+}
+
+.auth-card::-webkit-scrollbar-track {
+    background: #d9e3ea;
+    border-radius: 999px;
+}
+
+.auth-card::-webkit-scrollbar-thumb {
+    background: var(--cyan);
+    border: 2px solid #d9e3ea;
+    border-radius: 999px;
 }
 
 .auth-card-head {
@@ -465,6 +489,12 @@ input.invalid {
 .active-reservation span,
 .active-reservation small {
     display: block;
+}
+
+.active-countdown {
+    color: var(--cyan-dark);
+    font-size: 15px;
+    margin-top: 7px;
 }
 
 .bottom-sheet {
@@ -841,6 +871,8 @@ input.invalid {
 
 @media (max-width: 768px) {
     .auth-view {
+        height: 100vh;
+        height: 100svh;
         grid-template-columns: 1fr;
         min-height: 100vh;
         min-height: 100svh;
@@ -862,6 +894,8 @@ input.invalid {
 
     .auth-card {
         border-radius: 12px;
+        max-height: none;
+        overflow: visible;
         padding: 18px;
     }
 

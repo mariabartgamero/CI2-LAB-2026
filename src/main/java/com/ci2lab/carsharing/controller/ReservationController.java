@@ -36,6 +36,11 @@ public class ReservationController {
         return reservationService.join(id, request.userId());
     }
 
+    @PostMapping("/{id}/start")
+    public ReservationResponse start(@PathVariable Long id, @Valid @RequestBody UserActionRequest request) {
+        return reservationService.start(id, request.userId());
+    }
+
     @PostMapping("/{id}/finish")
     public ReservationResponse finish(@PathVariable Long id) {
         return reservationService.finish(id);
