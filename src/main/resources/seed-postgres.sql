@@ -3,7 +3,8 @@ INSERT INTO companies (id, nombre, codigo_empresa) VALUES
     (2, 'Repsol', 'REP2026'),
     (3, 'Endesa', 'END2026'),
     (4, 'Accenture', 'ACC2026')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    codigo_empresa = EXCLUDED.codigo_empresa;
 
 INSERT INTO offices (id, nombre, direccion, latitud, longitud, company_id) VALUES
     (1, 'Oficina Tres Cantos', 'Tres Cantos, Madrid', 40.600900, -3.708000, 1),
@@ -28,7 +29,8 @@ INSERT INTO app_users (id, nombre, email, user_password, dni, company_id, codigo
     (9, 'Nerea Gil', 'nerea@endesa.test', '1234', '99999999J', 3, 'END2026', 45),
     (10, 'Pablo Vega', 'pablo@accenture.test', '1234', '10101010K', 4, 'ACC2026', 110),
     (11, 'Elena Torres', 'elena@accenture.test', '1234', '12121212L', 4, 'ACC2026', 70)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    codigo_empresa = EXCLUDED.codigo_empresa;
 
 INSERT INTO cars (id, matricula, bateria, estado, latitud, longitud, plazas_totales) VALUES
     -- Oficinas
