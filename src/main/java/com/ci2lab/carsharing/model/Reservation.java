@@ -61,9 +61,21 @@ public class Reservation {
     @Column(nullable = false)
     private double origenLongitud;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "office_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "office_id", nullable = true)
     private Office destino;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_trayecto")
+    private ReservationTripType tipoTrayecto = ReservationTripType.IDA;
+
+    private String destinoNombre;
+
+    private String destinoDireccion;
+
+    private Double destinoLatitud;
+
+    private Double destinoLongitud;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -166,6 +178,58 @@ public class Reservation {
 
     public void setDestino(Office destino) {
         this.destino = destino;
+    }
+
+    public ReservationTripType getTipoTrayecto() {
+        return tipoTrayecto == null ? ReservationTripType.IDA : tipoTrayecto;
+    }
+
+    public void setTipoTrayecto(ReservationTripType tipoTrayecto) {
+        this.tipoTrayecto = tipoTrayecto == null ? ReservationTripType.IDA : tipoTrayecto;
+    }
+
+    public String getDestinoNombre() {
+        if (destinoNombre != null && !destinoNombre.isBlank()) {
+            return destinoNombre;
+        }
+        return destino == null ? null : destino.getNombre();
+    }
+
+    public void setDestinoNombre(String destinoNombre) {
+        this.destinoNombre = destinoNombre;
+    }
+
+    public String getDestinoDireccion() {
+        if (destinoDireccion != null && !destinoDireccion.isBlank()) {
+            return destinoDireccion;
+        }
+        return destino == null ? null : destino.getDireccion();
+    }
+
+    public void setDestinoDireccion(String destinoDireccion) {
+        this.destinoDireccion = destinoDireccion;
+    }
+
+    public Double getDestinoLatitud() {
+        if (destinoLatitud != null) {
+            return destinoLatitud;
+        }
+        return destino == null ? null : destino.getLatitud();
+    }
+
+    public void setDestinoLatitud(Double destinoLatitud) {
+        this.destinoLatitud = destinoLatitud;
+    }
+
+    public Double getDestinoLongitud() {
+        if (destinoLongitud != null) {
+            return destinoLongitud;
+        }
+        return destino == null ? null : destino.getLongitud();
+    }
+
+    public void setDestinoLongitud(Double destinoLongitud) {
+        this.destinoLongitud = destinoLongitud;
     }
 
     public ReservationStatus getEstado() {

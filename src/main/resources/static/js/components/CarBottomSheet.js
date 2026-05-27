@@ -1,5 +1,5 @@
-import { tripMetrics } from "../utils/location.js";
-import { defaultStartTimeValue, estimatedArrivalLabel, localDateTimePayload, validateStartTime } from "../utils/dateTime.js";
+import { geocodeAddress, tripMetrics } from "../utils/location.js";
+import { defaultStartTimeValue, localDateTimePayload, validateStartTime } from "../utils/dateTime.js";
 import { API_BASE_URL } from "../services/api.js";
 
 const CAR_BRAND = "MERCEDES EQA";
@@ -14,9 +14,9 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
     }
 
     const selectedOffice = resolveInitialOffice(car, offices);
-    const metrics = tripMetrics(car, selectedOffice);
     const isAvailable = car.estado === "LIBRE";
     const hasReservation = Boolean(car.reserva);
+    const metrics = tripMetrics(car, hasReservation ? destinationFromReservation(car.reserva) : selectedOffice);
     const reservationStatus = hasReservation ? car.reserva.estado : null;
     const isBookableReservation = reservationStatus === "PENDIENTE" || reservationStatus === "ACTIVE";
     const occupants = hasReservation ? car.reserva.usuariosApuntados ?? [] : [];
@@ -26,7 +26,6 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
     const canCancel = isAlreadyOccupant && isBookableReservation;
     const hasOtherActiveReservation = activeReservation && !isSelectedCarMyActiveTrip;
     const defaultStart = defaultStartTimeValue();
-    const arrival = estimatedArrivalLabel(defaultStart, metrics.minutes);
     container.classList.remove("hidden");
     container.innerHTML = `
         <button class="sheet-close" type="button" aria-label="Cerrar">×</button>
@@ -56,7 +55,7 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
             <div class="trip-card">
             <span>Destino</span>
             <strong id="destinationName">${metrics.destination.name}</strong>
-            <p>${metrics.distanceLabel} · ${metrics.minutes} min aprox.</p>
+            <p>${hasReservation ? `Reserva: ${formatDateTime(car.reserva.horaSalida)} · ` : ""}${metrics.distanceLabel} · ${metrics.minutes} min aprox.</p>
         </div>
         <div class="points-row">
             <span>Ganaras</span>
@@ -67,22 +66,31 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
             <div class="active-inline">
                 <span>Ya tienes una reserva activa</span>
                 <strong>${activeReservation.matricula}</strong>
-                <p>Inicio: ${formatTime(activeReservation.horaSalida)} · Llegada: ${formatTime(activeReservation.horaEstimadaLlegada)}</p>
             </div>
         ` : ""}
         ${isAvailable && !activeReservation ? `
             <label class="time-field">
+                Tipo de trayecto
+                <select id="tripTypeSelect">
+                    <option value="IDA" selected>Ida a oficina</option>
+                    <option value="VUELTA">Vuelta a direccion</option>
+                </select>
+            </label>
+            <label class="time-field ida-field">
                 Oficina destino
                 <select id="officeSelect">
                     ${offices.map((office) => `<option value="${office.id}" ${office.id === selectedOffice.id ? "selected" : ""}>${office.nombre}</option>`).join("")}
                 </select>
             </label>
+            <label class="time-field return-field hidden">
+                Direccion destino
+                <input id="returnAddressInput" type="text" placeholder="Calle, numero, ciudad">
+            </label>
             <label class="time-field">
                 Hora de inicio
                 <input id="startTimeInput" type="datetime-local" value="${defaultStart}" required>
             </label>
-            <p class="arrival-copy" id="arrivalCopy">Llegada automatica a ${metrics.destination.name} · ${arrival} · ${metrics.minutes} min aprox.</p>
-            <p class="sheet-note">Reserva con 12 h o menos · Max. 1 reserva por persona al dia.</p>
+            <p class="sheet-note">Reserva con 12 h o menos · Max. 1 ida y 1 vuelta por dia.</p>
             <p class="message error hidden" id="sheetError"></p>
         ` : ""}
         ${canCancel ? `<button class="button danger cancel-trip-action" type="button">Cancelar viaje</button>` : ""}
@@ -94,40 +102,70 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
 
     container.querySelector(".sheet-close").addEventListener("click", onClose);
     const startTimeInput = container.querySelector("#startTimeInput");
+    const tripTypeSelect = container.querySelector("#tripTypeSelect");
     const officeSelect = container.querySelector("#officeSelect");
+    const returnAddressInput = container.querySelector("#returnAddressInput");
     const refreshArrival = () => {
-        const liveMetrics = tripMetrics(car, findOffice(offices, Number(officeSelect?.value)) || selectedOffice);
-        const arrivalText = estimatedArrivalLabel(startTimeInput.value, liveMetrics.minutes);
+        const tipoTrayecto = tripTypeSelect?.value ?? "IDA";
+        container.querySelector(".ida-field")?.classList.toggle("hidden", tipoTrayecto !== "IDA");
+        container.querySelector(".return-field")?.classList.toggle("hidden", tipoTrayecto !== "VUELTA");
+        clearSheetError(container);
+
+        if (tipoTrayecto === "VUELTA") {
+            const address = returnAddressInput.value.trim();
+            container.querySelector("#destinationName").textContent = address || "Direccion destino";
+            container.querySelector(".trip-card p").textContent = address ? "Se calculara al reservar" : "Escribe una direccion";
+            container.querySelector(".points-row strong").textContent = "Pendiente";
+            return;
+        }
+
+        const liveMetrics = idaTripMetrics(car, offices, selectedOffice, officeSelect);
         container.querySelector("#destinationName").textContent = liveMetrics.destination.name;
-        container.querySelector("#arrivalCopy").textContent = `Llegada automatica a ${liveMetrics.destination.name} · ${arrivalText} · ${liveMetrics.minutes} min aprox.`;
         container.querySelector(".trip-card p").textContent = `${liveMetrics.distanceLabel} · ${liveMetrics.minutes} min aprox.`;
         container.querySelector(".points-row strong").textContent = `${liveMetrics.points} puntos`;
     };
     startTimeInput?.addEventListener("input", refreshArrival);
+    tripTypeSelect?.addEventListener("change", refreshArrival);
     officeSelect?.addEventListener("change", refreshArrival);
-    container.querySelector(".reserve-action")?.addEventListener("click", () => {
+    returnAddressInput?.addEventListener("input", refreshArrival);
+    container.querySelector(".reserve-action")?.addEventListener("click", async (event) => {
         if (!isAvailable || activeReservation) return;
         const error = validateStartTime(startTimeInput.value);
         if (error) {
-            const errorNode = container.querySelector("#sheetError");
-            errorNode.textContent = error;
-            errorNode.classList.remove("hidden");
+            showSheetError(container, error);
             return;
         }
-        const selectedDestination = findOffice(offices, Number(officeSelect.value)) || selectedOffice;
-        const liveMetrics = tripMetrics(car, selectedDestination);
-        onAction(car, {
-            ...liveMetrics,
-            officeId: selectedDestination.id,
-            startTime: localDateTimePayload(startTimeInput.value)
+        await runButtonAction(event.currentTarget, "Reservando...", async () => {
+            const liveMetrics = await currentTripMetrics(car, offices, selectedOffice, tripTypeSelect, officeSelect, returnAddressInput);
+            if (liveMetrics?.error) {
+                showSheetError(container, liveMetrics.error);
+                return;
+            }
+            if (!liveMetrics) {
+                showSheetError(container, "No se encontró esa dirección");
+                return;
+            }
+            await onAction(car, {
+                ...liveMetrics,
+                startTime: localDateTimePayload(startTimeInput.value)
+            });
         });
     });
-    container.querySelector(".join-action")?.addEventListener("click", () => {
-        onAction(car, metrics, "join");
+    container.querySelector(".join-action")?.addEventListener("click", async (event) => {
+        await runButtonAction(event.currentTarget, "Uniendo...", () => onAction(car, metrics, "join"));
     });
-    container.querySelector(".cancel-trip-action")?.addEventListener("click", () => {
-        onAction(car, metrics, "cancel");
+    container.querySelector(".cancel-trip-action")?.addEventListener("click", async (event) => {
+        await runButtonAction(event.currentTarget, "Cancelando...", () => onAction(car, metrics, "cancel"));
     });
+}
+
+async function runButtonAction(button, loadingText, action) {
+    const defaultText = button.textContent;
+    button.disabled = true;
+    button.textContent = loadingText;
+    await action?.();
+    button.disabled = false;
+    button.textContent = defaultText;
 }
 
 function resolveInitialOffice(car, offices) {
@@ -135,8 +173,68 @@ function resolveInitialOffice(car, offices) {
     return offices[0];
 }
 
+async function currentTripMetrics(car, offices, selectedOffice, tripTypeSelect, officeSelect, returnAddressInput) {
+    const tipoTrayecto = tripTypeSelect?.value ?? "IDA";
+    if (tipoTrayecto === "VUELTA") {
+        const address = returnAddressInput?.value.trim();
+        if (!address) return { error: "No se encontró esa dirección" };
+
+        const destination = await geocodeAddress(address);
+        if (destination.error) return destination;
+
+        return {
+            ...tripMetrics(car, destination),
+            tipoTrayecto,
+            officeId: null,
+            destinoNombre: destination.name,
+            destinoDireccion: destination.address,
+            destinoLatitud: destination.lat,
+            destinoLongitud: destination.lng
+        };
+    }
+
+    return idaTripMetrics(car, offices, selectedOffice, officeSelect);
+}
+
+function idaTripMetrics(car, offices, selectedOffice, officeSelect) {
+    const selectedDestination = findOffice(offices, Number(officeSelect?.value)) || selectedOffice;
+    return {
+        ...tripMetrics(car, selectedDestination),
+        tipoTrayecto: "IDA",
+        officeId: selectedDestination.id,
+        destinoNombre: selectedDestination.nombre,
+        destinoDireccion: selectedDestination.direccion,
+        destinoLatitud: selectedDestination.latitud,
+        destinoLongitud: selectedDestination.longitud
+    };
+}
+
+function destinationFromReservation(reservation) {
+    if (reservation?.destinoLatitud != null && reservation?.destinoLongitud != null) {
+        return {
+            lat: reservation.destinoLatitud,
+            lng: reservation.destinoLongitud,
+            name: reservation.destinoNombre ?? reservation.destino?.nombre ?? "Destino"
+        };
+    }
+    return reservation?.destino;
+}
+
 function findOffice(offices, officeId) {
     return offices.find((office) => office.id === officeId);
+}
+
+function showSheetError(container, message) {
+    const errorNode = container.querySelector("#sheetError");
+    errorNode.textContent = message;
+    errorNode.classList.remove("hidden");
+}
+
+function clearSheetError(container) {
+    const errorNode = container.querySelector("#sheetError");
+    if (!errorNode) return;
+    errorNode.textContent = "";
+    errorNode.classList.add("hidden");
 }
 
 function occupantName(occupant) {
@@ -147,8 +245,10 @@ function sameId(left, right) {
     return Number(left) === Number(right);
 }
 
-function formatTime(value) {
+function formatDateTime(value) {
     return new Intl.DateTimeFormat("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
         hour: "2-digit",
         minute: "2-digit"
     }).format(new Date(value));

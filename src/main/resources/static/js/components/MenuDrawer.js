@@ -3,6 +3,7 @@ import { formatDateTime } from "../utils/dateTime.js";
 export function renderMenuDrawer(container, { user, reservations }, onStart, onCancel, onLogout, onClose) {
     const completed = reservations.filter((reservation) => isCompleted(reservationStatusForUser(reservation)));
     const cancelled = reservations.filter((reservation) => isCancelled(reservationStatusForUser(reservation)));
+    const expired = reservations.filter((reservation) => isExpired(reservationStatusForUser(reservation)));
 
     container.classList.remove("hidden");
     container.innerHTML = `
@@ -28,9 +29,11 @@ export function renderMenuDrawer(container, { user, reservations }, onStart, onC
             <section class="drawer-section">
                 <h3>Reservas</h3>
                 <h4>Completadas</h4>
-                ${completed.length ? completed.map((reservation) => reservationCard(reservation)).join("") : "<p class='empty-copy'>Sin reservas completadas.</p>"}
+                ${completed.length ? completed.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas completadas.</p>"}
                 <h4>Canceladas</h4>
-                ${cancelled.length ? cancelled.map((reservation) => reservationCard(reservation)).join("") : "<p class='empty-copy'>Sin reservas canceladas.</p>"}
+                ${cancelled.length ? cancelled.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas canceladas.</p>"}
+                <h4>Caducadas</h4>
+                ${expired.length ? expired.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas caducadas.</p>"}
             </section>
 
             <button class="button secondary logout-action" type="button">Cerrar sesion</button>
@@ -47,19 +50,27 @@ export function closeMenuDrawer(container) {
     container.innerHTML = "";
 }
 
-function reservationCard(reservation) {
+function reservationCard(reservation, user) {
+    const status = reservationStatusForUser(reservation);
+    const points = effectivePoints(reservation);
     return `
         <article class="drawer-reservation">
-            <strong>${reservation.matricula} · Mercedes EQA Electrico</strong>
+            <div class="drawer-reservation-head">
+                <strong>${reservation.matricula} · Mercedes EQA Electrico</strong>
+                <span class="reservation-status">${statusLabel(status)}</span>
+            </div>
+            <span>${tripTypeLabel(reservation.tipoTrayecto)} · ${destinationName(reservation)}</span>
             <span>${formatDateTime(reservation.horaSalida)}</span>
-            <span>Llegada estimada: ${formatDateTime(reservation.horaEstimadaLlegada)}</span>
-            <span>Estado: ${statusLabel(reservationStatusForUser(reservation))}</span>
-            <span>${reservation.plazasOcupadas}/5 ocupantes · ${reservation.puntosPrevistos} puntos</span>
+            <span>Coche: ${reservation.matricula}</span>
+            <span>Rol: ${reservationRole(reservation, user)}</span>
+            <span>${reservation.plazasOcupadas}/5 ocupantes · ${points} puntos</span>
+            ${points === 0 ? "<span>Necesitas al menos 2 ocupantes para ganar puntos.</span>" : ""}
         </article>
     `;
 }
 
 function reservationStatusForUser(reservation) {
+    if (isExpired(reservation.estado)) return reservation.estado;
     return reservation.estadoUsuario ?? reservation.estado;
 }
 
@@ -71,6 +82,26 @@ function isCancelled(status) {
     return status === "CANCELADA" || status === "CANCELLED";
 }
 
+function isExpired(status) {
+    return status === "EXPIRED" || status === "CADUCADA";
+}
+
+function reservationRole(reservation, user) {
+    return Number(reservation.usuarioCreadorId) === Number(user.id) ? "creador" : "acompanante";
+}
+
+function tripTypeLabel(value) {
+    return value === "VUELTA" ? "Vuelta" : "Ida";
+}
+
+function destinationName(reservation) {
+    return reservation.destinoNombre ?? reservation.destino?.nombre ?? "Destino";
+}
+
+function effectivePoints(reservation) {
+    return Number(reservation.plazasOcupadas) >= 2 ? reservation.puntosPrevistos : 0;
+}
+
 function statusLabel(status) {
     const labels = {
         PENDIENTE: "pendiente",
@@ -79,7 +110,9 @@ function statusLabel(status) {
         FINALIZADA: "finalizada",
         COMPLETED: "finalizada",
         CANCELADA: "cancelada",
-        CANCELLED: "cancelada"
+        CANCELLED: "cancelada",
+        EXPIRED: "caducada",
+        CADUCADA: "caducada"
     };
     return labels[status] ?? String(status).toLowerCase();
 }

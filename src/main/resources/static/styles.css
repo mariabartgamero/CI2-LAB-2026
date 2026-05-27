@@ -72,9 +72,9 @@ label {
     height: 100svh;
     min-height: 100vh;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+    grid-template-columns: minmax(0, 0.9fr) minmax(360px, 430px);
     align-items: center;
-    gap: 48px;
+    gap: 36px;
     overflow: hidden;
     padding: 40px;
     background:
@@ -91,7 +91,7 @@ label {
     align-items: center;
     display: flex;
     gap: 12px;
-    margin-bottom: 54px;
+    margin-bottom: 34px;
 }
 
 .auth-brand strong,
@@ -119,7 +119,7 @@ label {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 54px;
+    margin-bottom: 34px;
 }
 
 .auth-brand strong,
@@ -132,15 +132,15 @@ label {
 }
 
 .auth-copy h1 {
-    font-size: clamp(42px, 6vw, 76px);
+    font-size: clamp(40px, 5vw, 64px);
     line-height: 1;
-    margin: 14px 0 18px;
+    margin: 12px 0 14px;
 }
 
 .auth-copy p {
     color: rgb(255 255 255 / 78%);
-    font-size: 20px;
-    max-width: 610px;
+    font-size: 18px;
+    max-width: 520px;
 }
 
 .auth-proof {
@@ -197,7 +197,7 @@ label {
     max-height: calc(100svh - 80px);
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 22px;
+    padding: 20px;
     scrollbar-color: var(--cyan) #d9e3ea;
     scrollbar-width: thin;
 }
@@ -330,6 +330,28 @@ input.invalid {
     }
 }
 
+.button.success {
+    background: var(--green);
+    color: #ffffff;
+}
+
+@media (hover: hover) {
+    .button.success:hover {
+        background: #11814c;
+    }
+}
+
+.button:disabled {
+    cursor: not-allowed;
+    opacity: 0.62;
+}
+
+.button.trip-action,
+.button.trip-action:disabled {
+    background: var(--cyan);
+    color: #ffffff;
+}
+
 .secondary {
     background: #ffffff;
     border-color: var(--line);
@@ -369,20 +391,27 @@ input.invalid {
 }
 
 .password-field input {
-    padding-right: 82px;
+    padding-right: 46px;
 }
 
 .password-toggle {
+    align-items: center;
     background: transparent;
     border: 0;
     color: var(--cyan-dark);
     cursor: pointer;
-    font-size: 12px;
+    display: flex;
+    font-size: 16px;
     font-weight: 850;
+    height: 34px;
+    justify-content: center;
+    margin-top: 0;
+    padding: 0;
     position: absolute;
     right: 8px;
     top: 50%;
-    transform: translateY(-35%);
+    transform: translateY(-50%);
+    width: 34px;
 }
 
 .mobile-app {
@@ -483,6 +512,23 @@ input.invalid {
     position: absolute;
     right: 16px;
     z-index: 650;
+}
+
+.active-reservation-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.active-reservation-actions .button {
+    margin-top: 0;
+    min-height: 44px;
+    min-width: 0;
+    padding: 10px 14px;
+    white-space: nowrap;
+    width: max-content;
 }
 
 .active-reservation strong,
@@ -837,9 +883,9 @@ input.invalid {
 
 .profile-summary,
 .drawer-reservation {
-    background: #f8fbfd;
+    background: #ffffff;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 12px;
     padding: 12px;
 }
 
@@ -861,7 +907,26 @@ input.invalid {
 
 .drawer-reservation {
     display: grid;
-    gap: 5px;
+    gap: 7px;
+    box-shadow: 0 8px 22px rgb(16 24 40 / 8%);
+}
+
+.drawer-reservation-head {
+    align-items: start;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.reservation-status {
+    background: #edf8fb;
+    border: 1px solid #cceef6;
+    border-radius: 999px;
+    color: var(--cyan-dark) !important;
+    flex: 0 0 auto;
+    font-size: 12px !important;
+    font-weight: 850;
+    padding: 4px 8px;
 }
 
 .leaflet-control-zoom a {
@@ -938,6 +1003,14 @@ input.invalid {
         left: 10px;
         padding: 12px;
         right: 10px;
+    }
+
+    .active-reservation-actions {
+        justify-content: flex-start;
+    }
+
+    .active-reservation-actions .button {
+        flex: 0 0 auto;
     }
 
     .bottom-sheet {

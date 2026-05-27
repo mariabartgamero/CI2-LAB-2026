@@ -10,6 +10,7 @@ import com.ci2lab.carsharing.model.ParticipantStatus;
 import com.ci2lab.carsharing.model.Reservation;
 import com.ci2lab.carsharing.model.ReservationParticipant;
 import com.ci2lab.carsharing.model.ReservationStatus;
+import com.ci2lab.carsharing.model.ReservationTripType;
 import com.ci2lab.carsharing.model.User;
 import com.ci2lab.carsharing.repository.CarRepository;
 import com.ci2lab.carsharing.repository.OfficeRepository;
@@ -19,6 +20,7 @@ import com.ci2lab.carsharing.repository.UserRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ public class ReservationService {
     private static final int DEFAULT_DURATION_MINUTES = 30;
     private static final int DEFAULT_POINTS = 320;
     private static final int MAX_ADVANCE_HOURS = 12;
+    private static final int EXPIRATION_GRACE_MINUTES = 15;
     private static final List<ReservationStatus> LIVE_STATUSES = List.of(
             ReservationStatus.ACTIVE
     );
@@ -59,19 +62,46 @@ public class ReservationService {
         completeExpiredReservations();
         User user = findUser(request.userId());
         Car car = carRepository.findById(request.carId()).orElseThrow(() -> new AppException("Coche no encontrado"));
-        Office office = officeRepository.findById(request.officeId())
-                .orElseThrow(() -> new AppException("Oficina no encontrada"));
-
         if (car.getEstado() != CarStatus.LIBRE) {
             throw new AppException("Este coche no esta libre");
-        }
-        if (!office.getEmpresa().getId().equals(user.getEmpresa().getId())) {
-            throw new AppException("La oficina destino debe pertenecer a tu empresa");
         }
         reservationRepository.findFirstByUsuariosApuntadosIdAndEstadoIn(user.getId(), LIVE_STATUSES)
                 .ifPresent(active -> {
                     throw new AppException("Ya tienes una reserva activa");
                 });
+
+        ReservationTripType tripType = request.tipoTrayecto() == null ? ReservationTripType.IDA : request.tipoTrayecto();
+        Office office = null;
+        String destinationName;
+        String destinationAddress;
+        Double destinationLatitude;
+        Double destinationLongitude;
+
+        if (tripType == ReservationTripType.IDA) {
+            if (request.officeId() == null) {
+                throw new AppException("Selecciona una oficina destino");
+            }
+            office = officeRepository.findById(request.officeId())
+                    .orElseThrow(() -> new AppException("Oficina no encontrada"));
+            if (!office.getEmpresa().getId().equals(user.getEmpresa().getId())) {
+                throw new AppException("La oficina destino debe pertenecer a tu empresa");
+            }
+            destinationName = office.getNombre();
+            destinationAddress = office.getDireccion();
+            destinationLatitude = office.getLatitud();
+            destinationLongitude = office.getLongitud();
+        } else {
+            destinationName = cleanText(request.destinoNombre());
+            destinationAddress = cleanText(request.destinoDireccion());
+            destinationLatitude = request.destinoLatitud();
+            destinationLongitude = request.destinoLongitud();
+            if (destinationAddress.isBlank() || destinationLatitude == null || destinationLongitude == null) {
+                throw new AppException("Indica direccion y coordenadas de destino");
+            }
+            if (destinationName.isBlank()) {
+                destinationName = destinationAddress;
+            }
+        }
 
         LocalDateTime startTime = request.horaSalida() == null ? LocalDateTime.now() : request.horaSalida();
         int durationMinutes = request.duracionMinutos() == null ? DEFAULT_DURATION_MINUTES : Math.max(1, request.duracionMinutos());
@@ -83,7 +113,7 @@ public class ReservationService {
         if (startTime.isAfter(LocalDateTime.now().plusHours(MAX_ADVANCE_HOURS))) {
             throw new AppException("Solo puedes reservar con 12 horas de antelacion como maximo");
         }
-        validateOneReservationPerDay(user.getId(), startTime);
+        validateOneReservationPerDay(user.getId(), tripType, startTime);
 
         Reservation reservation = new Reservation();
         reservation.setCoche(car);
@@ -95,6 +125,11 @@ public class ReservationService {
         reservation.setOrigenLatitud(car.getLatitud());
         reservation.setOrigenLongitud(car.getLongitud());
         reservation.setDestino(office);
+        reservation.setTipoTrayecto(tripType);
+        reservation.setDestinoNombre(destinationName);
+        reservation.setDestinoDireccion(destinationAddress);
+        reservation.setDestinoLatitud(destinationLatitude);
+        reservation.setDestinoLongitud(destinationLongitude);
         reservation.setEstado(ReservationStatus.ACTIVE);
         reservation.setTrayectoIniciado(false);
         reservation.setPuntosPrevistos(points);
@@ -115,7 +150,7 @@ public class ReservationService {
             throw new AppException("Esta reserva ya no acepta ocupantes");
         }
         if (!reservation.getHoraSalida().isAfter(LocalDateTime.now())) {
-            throw new AppException("No puedes unirte a una reserva que ya ha salido");
+            throw new AppException("Ya no puedes unirte a esta reserva");
         }
         if (!reservation.getEmpresa().getId().equals(user.getEmpresa().getId())) {
             throw new AppException("Solo puedes unirte a reservas de tu empresa");
@@ -126,7 +161,7 @@ public class ReservationService {
         if (reservation.getPlazasOcupadas() >= reservation.getCoche().getPlazasTotales()) {
             throw new AppException("El coche ya esta completo");
         }
-        validateOneReservationPerDay(user.getId(), reservation.getHoraSalida());
+        validateOneReservationPerDay(user.getId(), reservation.getTipoTrayecto(), reservation.getHoraSalida());
         reservationRepository.findFirstByUsuariosApuntadosIdAndEstadoIn(user.getId(), LIVE_STATUSES)
                 .ifPresent(active -> {
                     throw new AppException("Ya tienes una reserva activa");
@@ -141,14 +176,12 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse start(Long reservationId, Long userId) {
+        completeExpiredReservations();
         Reservation reservation = findReservation(reservationId);
         validateParticipant(reservation, userId);
         validateCreator(reservation, userId);
         if (!isBookable(reservation)) {
             throw new AppException("Solo se pueden iniciar reservas pendientes");
-        }
-        if (reservation.getHoraEstimadaLlegada().isBefore(LocalDateTime.now())) {
-            throw new AppException("Esta reserva ya ha superado su hora estimada de llegada");
         }
         if (!canStartTrip(reservation)) {
             throw new AppException("Aun no puedes iniciar el viaje: faltan pasajeros por marcarse como listos");
@@ -168,6 +201,7 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse ready(Long reservationId, Long userId) {
+        completeExpiredReservations();
         Reservation reservation = findReservation(reservationId);
         validateParticipant(reservation, userId);
         if (!isBookable(reservation)) {
@@ -187,6 +221,7 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse finish(Long reservationId, Long userId) {
+        completeExpiredReservations();
         Reservation reservation = findReservation(reservationId);
         validateParticipant(reservation, userId);
         validateCreator(reservation, userId);
@@ -201,6 +236,7 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse cancel(Long reservationId, Long userId) {
+        completeExpiredReservations();
         Reservation reservation = findReservation(reservationId);
         validateParticipant(reservation, userId);
         if (!isBookable(reservation)) {
@@ -246,7 +282,16 @@ public class ReservationService {
 
     @Transactional
     public void completeExpiredReservations() {
-        // Los trayectos en curso se finalizan manualmente desde la app.
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(EXPIRATION_GRACE_MINUTES);
+        reservationRepository
+                .findPendingReservationsToExpire(ReservationStatus.ACTIVE, cutoff)
+                .forEach(this::expireReservation);
+    }
+
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void expireOldReservations() {
+        completeExpiredReservations();
     }
 
     private User findUser(Long id) {
@@ -257,17 +302,18 @@ public class ReservationService {
         return reservationRepository.findById(id).orElseThrow(() -> new AppException("Reserva no encontrada"));
     }
 
-    private void validateOneReservationPerDay(Long userId, LocalDateTime startTime) {
+    private void validateOneReservationPerDay(Long userId, ReservationTripType tripType, LocalDateTime startTime) {
         LocalDateTime startOfDay = startTime.toLocalDate().atStartOfDay();
         LocalDateTime startOfNextDay = startOfDay.plusDays(1);
-        boolean hasReservation = reservationRepository.existsCountedReservationForUserOnDay(
+        boolean hasReservation = reservationRepository.existsCountedReservationForUserOnDayAndType(
                 userId,
                 COUNTED_STATUSES,
+                tripType,
                 startOfDay,
                 startOfNextDay
         );
         if (hasReservation) {
-            throw new AppException("Solo puedes tener una reserva por dia");
+            throw new AppException("Solo puedes tener una reserva de este tipo por dia");
         }
     }
 
@@ -276,8 +322,8 @@ public class ReservationService {
         reservation.setTrayectoIniciado(false);
         Car car = reservation.getCoche();
         car.setEstado(CarStatus.LIBRE);
-        car.setLatitud(reservation.getDestino().getLatitud());
-        car.setLongitud(reservation.getDestino().getLongitud());
+        car.setLatitud(reservation.getDestinoLatitud());
+        car.setLongitud(reservation.getDestinoLongitud());
 
         if (!reservation.isPuntosAsignados()) {
             int awardedPoints = pointsForCompletedTrip(reservation);
@@ -294,9 +340,19 @@ public class ReservationService {
         }
     }
 
+    private void expireReservation(Reservation reservation) {
+        reservation.setEstado(ReservationStatus.EXPIRED);
+        reservation.setTrayectoIniciado(false);
+        reservation.getCoche().setEstado(CarStatus.LIBRE);
+    }
+
     private void addParticipantHistory(Reservation reservation, User user) {
         ReservationParticipant participant = new ReservationParticipant(reservation, user);
         reservation.getParticipantes().add(participant);
+    }
+
+    private String cleanText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private void validateParticipant(Reservation reservation, Long userId) {
@@ -313,14 +369,16 @@ public class ReservationService {
     }
 
     private boolean canStartTrip(Reservation reservation) {
-        if (!reservation.getHoraSalida().isAfter(LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now();
+        if (!now.isBefore(reservation.getHoraSalida())) {
             return true;
         }
+
         List<ReservationParticipant> passengers = reservation.getParticipantes().stream()
                 .filter(participant -> participant.getStatus() == ParticipantStatus.ACTIVE)
                 .filter(participant -> !participant.getUser().getId().equals(reservation.getUsuarioCreador().getId()))
                 .toList();
-        return !passengers.isEmpty() && passengers.stream().allMatch(ReservationParticipant::isReady);
+        return passengers.isEmpty() || passengers.stream().allMatch(ReservationParticipant::isReady);
     }
 
     private boolean isBookable(Reservation reservation) {
@@ -333,7 +391,7 @@ public class ReservationService {
 
     private int pointsForCompletedTrip(Reservation reservation) {
         if (reservation.getPlazasOcupadas() < 2) {
-            return Math.round(reservation.getPuntosPrevistos() / 2.0f);
+            return 0;
         }
         return reservation.getPuntosPrevistos();
     }

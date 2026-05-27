@@ -2,6 +2,7 @@ package com.ci2lab.carsharing.repository;
 
 import com.ci2lab.carsharing.model.Reservation;
 import com.ci2lab.carsharing.model.ReservationStatus;
+import com.ci2lab.carsharing.model.ReservationTripType;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -49,6 +50,19 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     );
 
     @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
+    @Query("""
+            select r
+            from Reservation r
+            where r.estado = :status
+              and (r.trayectoIniciado = false or r.trayectoIniciado is null)
+              and r.horaSalida < :cutoff
+            """)
+    List<Reservation> findPendingReservationsToExpire(
+            @Param("status") ReservationStatus status,
+            @Param("cutoff") LocalDateTime cutoff
+    );
+
+    @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
     List<Reservation> findByEstadoAndHoraSalidaLessThanEqualAndHoraEstimadaLlegadaAfter(
             ReservationStatus status,
             LocalDateTime now,
@@ -68,12 +82,19 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             join r.usuariosApuntados u
             where u.id = :userId
               and r.estado in :statuses
+              and (
+                    (:tipoTrayecto = com.ci2lab.carsharing.model.ReservationTripType.IDA
+                        and (r.tipoTrayecto is null or r.tipoTrayecto = :tipoTrayecto))
+                    or (:tipoTrayecto <> com.ci2lab.carsharing.model.ReservationTripType.IDA
+                        and r.tipoTrayecto = :tipoTrayecto)
+              )
               and r.horaSalida >= :startOfDay
               and r.horaSalida < :startOfNextDay
             """)
-    boolean existsCountedReservationForUserOnDay(
+    boolean existsCountedReservationForUserOnDayAndType(
             @Param("userId") Long userId,
             @Param("statuses") Collection<ReservationStatus> statuses,
+            @Param("tipoTrayecto") ReservationTripType tipoTrayecto,
             @Param("startOfDay") LocalDateTime startOfDay,
             @Param("startOfNextDay") LocalDateTime startOfNextDay
     );

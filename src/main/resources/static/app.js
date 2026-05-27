@@ -51,8 +51,8 @@ function showAuthTab(tab) {
     showLoginEmailError(false);
     authTitle.textContent = tab === "login" ? "Bienvenido de nuevo" : "Alta de empleado";
     authSubtitle.textContent = tab === "login"
-        ? "Inicia sesión para gestionar tus trayectos corporativos."
-        : "Crea tu cuenta con el código facilitado por tu empresa.";
+        ? "Gestiona tus reservas y viajes."
+        : "Usa el código de tu empresa.";
     if (tab === "register") {
         loadCompaniesForRegister();
         updateRegisterState();
@@ -177,7 +177,7 @@ function togglePassword(button) {
     const input = button.previousElementSibling;
     const isHidden = input.type === "password";
     input.type = isHidden ? "text" : "password";
-    button.textContent = isHidden ? "Ocultar" : "Mostrar";
+    button.textContent = isHidden ? "✕" : "👁";
     button.setAttribute("aria-label", isHidden ? "Ocultar contrasena" : "Mostrar contrasena");
     button.title = isHidden ? "Ocultar contrasena" : "Mostrar contrasena";
 }

@@ -19,27 +19,29 @@ export function renderActiveReservationCard(container, reservation, options = {}
     const passengers = passengersFor(reservation);
     const currentPassengerReady = Boolean(currentOccupant?.ready);
     const canStart = isPending && isDriver && canStartReservation(reservation);
+    const points = effectivePoints(reservation);
 
     container.classList.remove("hidden");
     container.innerHTML = `
         <div>
             <p class="eyebrow">${isInProgress ? "Trayecto en curso" : "Reserva activa"}</p>
             <strong>${reservation.matricula} · Mercedes EQA Electrico</strong>
-            <span>${reservation.destino?.nombre ?? "Oficina destino"}</span>
-            <small>${reservation.plazasOcupadas}/5 ocupantes · ${isInProgress ? `Inicio ${formatTime(reservation.horaSalida)}` : `Llegada ${formatTime(reservation.horaEstimadaLlegada)}`} · ${reservation.puntosPrevistos} puntos · ${statusLabel(status)}</small>
+            <span>${tripTypeLabel(reservation.tipoTrayecto)} · ${destinationName(reservation)}</span>
+            <small>${reservation.plazasOcupadas}/5 ocupantes · ${points} puntos · ${statusLabel(status)}</small>
+            ${points === 0 ? "<small>Necesitas al menos 2 ocupantes para ganar puntos.</small>" : ""}
             ${passengers.length ? `<small>${passengers.map(passengerReadyLabel).join(" · ")}</small>` : ""}
             ${isInProgress ? `<strong class="active-trip-timer" data-active-elapsed="${reservation.horaSalida}">${elapsedTimeLabel(reservation.horaSalida)}</strong>` : ""}
         </div>
         ${isPending ? `
-            <div>
-                ${isDriver ? `<button class="button primary" data-start-active-reservation="${reservation.id}" type="button" ${canStart ? "" : "disabled"}>Iniciar viaje</button>` : ""}
-                ${!isDriver ? `<button class="button primary" data-ready-active-reservation="${reservation.id}" type="button" ${currentPassengerReady ? "disabled" : ""}>${currentPassengerReady ? "Listo" : "Estoy listo"}</button>` : ""}
+            <div class="active-reservation-actions">
+                ${isDriver ? `<button class="button primary trip-action" data-start-active-reservation="${reservation.id}" type="button" ${canStart ? "" : "disabled"}>Iniciar viaje</button>` : ""}
+                ${!isDriver ? `<button class="button success" data-ready-active-reservation="${reservation.id}" type="button" ${currentPassengerReady ? "disabled" : ""}>${currentPassengerReady ? "Listo" : "Estoy listo"}</button>` : ""}
                 <button class="button danger" data-cancel-active-reservation="${reservation.id}" type="button">Cancelar viaje</button>
             </div>
         ` : ""}
         ${isInProgress && isDriver ? `
-            <div>
-                <button class="button primary" data-finish-active-reservation="${reservation.id}" type="button">Finalizar trayecto</button>
+            <div class="active-reservation-actions">
+                <button class="button primary trip-action" data-finish-active-reservation="${reservation.id}" type="button">Finalizar trayecto</button>
             </div>
         ` : ""}
     `;
@@ -60,6 +62,18 @@ function reservationStatus(reservation) {
     return reservation.estadoUsuario ?? reservation.estado;
 }
 
+function tripTypeLabel(value) {
+    return value === "VUELTA" ? "Vuelta" : "Ida";
+}
+
+function destinationName(reservation) {
+    return reservation.destinoNombre ?? reservation.destino?.nombre ?? "Destino";
+}
+
+function effectivePoints(reservation) {
+    return Number(reservation.plazasOcupadas) >= 2 ? reservation.puntosPrevistos : 0;
+}
+
 function passengersFor(reservation) {
     return (reservation.usuariosApuntados ?? [])
         .filter((occupant) => Number(occupant.id) !== Number(reservation.usuarioCreadorId));
@@ -70,29 +84,47 @@ function passengerReadyLabel(passenger) {
 }
 
 function canStartReservation(reservation) {
-    if (!new Date(reservation.horaSalida).getTime()) return false;
-    if (new Date(reservation.horaSalida).getTime() <= Date.now()) return true;
+    const startTime = new Date(reservation.horaSalida).getTime();
+    if (!startTime) return false;
+    if (Date.now() >= startTime) return true;
 
     const passengers = passengersFor(reservation);
-    return passengers.length > 0 && passengers.every((passenger) => passenger.ready);
+    return passengers.length === 0 || passengers.every((passenger) => passenger.ready);
 }
 
 function bindActiveReservationActions(container, options) {
-    container.querySelector("[data-start-active-reservation]")?.addEventListener("click", (event) => {
-        options.onStart?.(Number(event.currentTarget.dataset.startActiveReservation));
+    container.querySelector("[data-start-active-reservation]")?.addEventListener("click", async (event) => {
+        await runButtonAction(event.currentTarget, "Iniciando...", () => (
+            options.onStart?.(Number(event.currentTarget.dataset.startActiveReservation))
+        ));
     });
 
-    container.querySelector("[data-ready-active-reservation]")?.addEventListener("click", (event) => {
-        options.onReady?.(Number(event.currentTarget.dataset.readyActiveReservation));
+    container.querySelector("[data-ready-active-reservation]")?.addEventListener("click", async (event) => {
+        await runButtonAction(event.currentTarget, "Marcando...", () => (
+            options.onReady?.(Number(event.currentTarget.dataset.readyActiveReservation))
+        ));
     });
 
-    container.querySelector("[data-cancel-active-reservation]")?.addEventListener("click", (event) => {
-        options.onCancel?.(Number(event.currentTarget.dataset.cancelActiveReservation));
+    container.querySelector("[data-cancel-active-reservation]")?.addEventListener("click", async (event) => {
+        await runButtonAction(event.currentTarget, "Cancelando...", () => (
+            options.onCancel?.(Number(event.currentTarget.dataset.cancelActiveReservation))
+        ));
     });
 
-    container.querySelector("[data-finish-active-reservation]")?.addEventListener("click", (event) => {
-        options.onFinish?.(Number(event.currentTarget.dataset.finishActiveReservation));
+    container.querySelector("[data-finish-active-reservation]")?.addEventListener("click", async (event) => {
+        await runButtonAction(event.currentTarget, "Finalizando...", () => (
+            options.onFinish?.(Number(event.currentTarget.dataset.finishActiveReservation))
+        ));
     });
+}
+
+async function runButtonAction(button, loadingText, action) {
+    const defaultText = button.textContent;
+    button.disabled = true;
+    button.textContent = loadingText;
+    await action?.();
+    button.disabled = false;
+    button.textContent = defaultText;
 }
 
 function statusLabel(status) {
@@ -103,7 +135,9 @@ function statusLabel(status) {
         FINALIZADA: "finalizada",
         COMPLETED: "finalizada",
         CANCELADA: "cancelada",
-        CANCELLED: "cancelada"
+        CANCELLED: "cancelada",
+        EXPIRED: "caducada",
+        CADUCADA: "caducada"
     };
     return labels[status] ?? String(status).toLowerCase();
 }

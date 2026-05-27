@@ -18,7 +18,11 @@ const screen = {
     activeReservation: null,
     reservations: [],
     sessionId: 0,
-    activeReservationPollTimer: null
+    activeReservationPollTimer: null,
+    refreshId: 0,
+    officesCompanyId: null,
+    carRenderKey: "",
+    officeRenderKey: ""
 };
 
 export async function initMapScreen(user, logout) {
@@ -69,27 +73,35 @@ function bindActions() {
     document.querySelector("#menuBtn").onclick = openMenu;
 }
 
-async function refresh(sessionId = screen.sessionId) {
-    const [cars, activeReservation, reservations, offices] = await Promise.all([
+async function refresh(sessionId = screen.sessionId, options = {}) {
+    const refreshId = ++screen.refreshId;
+    const summary = document.querySelector("#mapSummary");
+    if (!options.quiet && summary && screen.cars.length) summary.textContent = "Actualizando...";
+
+    const shouldLoadOffices = screen.officesCompanyId !== screen.user.empresaId || !screen.offices.length;
+    const shouldLoadReservations = !options.quiet || isMenuOpen();
+    const shouldLoadUser = !options.quiet;
+    const [cars, activeReservation, reservations, offices, updatedUser] = await Promise.all([
         getVisibleCars(screen.user.id),
         getActiveReservation(screen.user.id),
-        getUserReservations(screen.user.id),
-        getCompanyOffices(screen.user.empresaId)
+        shouldLoadReservations ? getUserReservations(screen.user.id) : Promise.resolve(screen.reservations),
+        shouldLoadOffices ? getCompanyOffices(screen.user.empresaId) : Promise.resolve(screen.offices),
+        shouldLoadUser ? getUser(screen.user.id) : Promise.resolve(screen.user)
     ]);
-    const updatedUser = await getUser(screen.user.id);
 
-    if (sessionId !== screen.sessionId) return;
+    if (sessionId !== screen.sessionId || refreshId !== screen.refreshId) return;
 
     screen.cars = cars;
     screen.offices = offices;
+    screen.officesCompanyId = screen.user.empresaId;
     screen.activeReservation = activeReservation;
     screen.reservations = reservations;
     screen.user = updatedUser;
     localStorage.setItem("activeUser", JSON.stringify(updatedUser));
 
     renderUserPill();
-    renderOffices();
-    renderCars();
+    renderOfficesIfChanged();
+    renderCarsIfChanged();
     renderActiveReservationCard(
         document.querySelector("#activeReservation"),
         screen.activeReservation,
@@ -101,6 +113,7 @@ async function refresh(sessionId = screen.sessionId) {
             onFinish: handleFinishReservation
         }
     );
+    rerenderMenuIfOpen();
     scheduleActiveReservationPolling(screen.activeReservation);
     document.querySelector("#mapSummary").textContent = `${cars.length} coches cerca de ti`;
 }
@@ -115,6 +128,10 @@ function clearMapScreen() {
     screen.selectedCar = null;
     screen.activeReservation = null;
     screen.reservations = [];
+    screen.refreshId++;
+    screen.officesCompanyId = null;
+    screen.carRenderKey = "";
+    screen.officeRenderKey = "";
     clearActiveReservationPolling();
 
     clearNode("#userPill");
@@ -134,7 +151,11 @@ function clearNode(selector, hide = false) {
     if (hide) node.classList.add("hidden");
 }
 
-function renderCars() {
+function renderCarsIfChanged() {
+    const nextKey = screen.cars.map(carKey).join("|");
+    if (nextKey === screen.carRenderKey) return;
+    screen.carRenderKey = nextKey;
+
     screen.markers.forEach((marker) => marker.remove());
     screen.markers = [];
 
@@ -151,6 +172,21 @@ function renderCars() {
         marker.addTo(screen.map);
         screen.markers.push(marker);
     });
+}
+
+function carKey(car) {
+    const reservation = car.reserva;
+    return [
+        car.id,
+        car.latitud,
+        car.longitud,
+        car.estado,
+        car.plazasDisponibles,
+        reservation?.id ?? "",
+        reservation?.estado ?? "",
+        reservation?.plazasOcupadas ?? "",
+        reservation?.plazasDisponibles ?? ""
+    ].join(":");
 }
 
 function selectCar(car) {
@@ -184,7 +220,12 @@ async function handleCarAction(car, metrics, action = "reserve") {
             await reserveCar({
                 userId: screen.user.id,
                 carId: car.id,
+                tipoTrayecto: metrics.tipoTrayecto,
                 officeId: metrics.officeId,
+                destinoNombre: metrics.destinoNombre,
+                destinoDireccion: metrics.destinoDireccion,
+                destinoLatitud: metrics.destinoLatitud,
+                destinoLongitud: metrics.destinoLongitud,
                 startTime: metrics.startTime,
                 durationMinutes: metrics.minutes,
                 points: metrics.points
@@ -199,6 +240,10 @@ async function handleCarAction(car, metrics, action = "reserve") {
 }
 
 function openMenu() {
+    renderOpenMenu();
+}
+
+function renderOpenMenu() {
     renderMenuDrawer(
         document.querySelector("#menuDrawer"),
         {
@@ -217,6 +262,16 @@ function openMenu() {
         screen.logout,
         () => closeMenuDrawer(document.querySelector("#menuDrawer"))
     );
+}
+
+function rerenderMenuIfOpen() {
+    if (!isMenuOpen()) return;
+    renderOpenMenu();
+}
+
+function isMenuOpen() {
+    const drawer = document.querySelector("#menuDrawer");
+    return Boolean(drawer && !drawer.classList.contains("hidden") && drawer.innerHTML);
 }
 
 async function handleCancelReservation(reservation) {
@@ -268,7 +323,11 @@ function renderUserPill() {
     `;
 }
 
-function renderOffices() {
+function renderOfficesIfChanged() {
+    const nextKey = screen.offices.map(officeKey).join("|");
+    if (nextKey === screen.officeRenderKey) return;
+    screen.officeRenderKey = nextKey;
+
     screen.officeMarkers.forEach((marker) => marker.remove());
     screen.officeMarkers = [];
 
@@ -288,6 +347,10 @@ function renderOffices() {
         marker.addTo(screen.map);
         screen.officeMarkers.push(marker);
     });
+}
+
+function officeKey(office) {
+    return [office.id, office.latitud, office.longitud, office.nombre, office.direccion].join(":");
 }
 
 function fitMadrid() {
@@ -318,11 +381,11 @@ function scheduleActiveReservationPolling(reservation) {
 
     screen.activeReservationPollTimer = setTimeout(async () => {
         try {
-            await refresh();
+            await refresh(screen.sessionId, { quiet: true });
         } catch (error) {
             showToast(error.message, "error");
         }
-    }, 5000);
+    }, 2500);
 }
 
 function clearActiveReservationPolling() {

@@ -3,6 +3,7 @@ package com.ci2lab.carsharing.dto;
 import com.ci2lab.carsharing.model.Reservation;
 import com.ci2lab.carsharing.model.ParticipantStatus;
 import com.ci2lab.carsharing.model.ReservationStatus;
+import com.ci2lab.carsharing.model.ReservationTripType;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,6 +20,11 @@ public record ReservationResponse(
         double origenLatitud,
         double origenLongitud,
         OfficeResponse destino,
+        ReservationTripType tipoTrayecto,
+        String destinoNombre,
+        String destinoDireccion,
+        Double destinoLatitud,
+        Double destinoLongitud,
         ReservationStatus estado,
         int puntosPrevistos,
         int plazasOcupadas,
@@ -47,7 +53,12 @@ public record ReservationResponse(
                 reservation.getHoraEstimadaLlegada(),
                 reservation.getOrigenLatitud(),
                 reservation.getOrigenLongitud(),
-                OfficeResponse.from(reservation.getDestino()),
+                reservation.getDestino() == null ? null : OfficeResponse.from(reservation.getDestino()),
+                reservation.getTipoTrayecto(),
+                reservation.getDestinoNombre(),
+                reservation.getDestinoDireccion(),
+                reservation.getDestinoLatitud(),
+                reservation.getDestinoLongitud(),
                 visibleStatus(reservation),
                 reservation.getPuntosPrevistos(),
                 reservation.getPlazasOcupadas(),
@@ -70,6 +81,9 @@ public record ReservationResponse(
         }
         if (reservation.getEstado() == ReservationStatus.CANCELLED) {
             return ReservationStatus.CANCELADA;
+        }
+        if (reservation.getEstado() == ReservationStatus.EXPIRED) {
+            return ReservationStatus.EXPIRED;
         }
         return reservation.getEstado();
     }

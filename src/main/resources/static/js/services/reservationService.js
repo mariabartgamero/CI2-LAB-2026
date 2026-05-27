@@ -1,12 +1,29 @@
 import { apiRequest } from "./api.js";
 
-export function reserveCar({ userId, carId, officeId, startTime, durationMinutes, points }) {
+export function reserveCar({
+    userId,
+    carId,
+    tipoTrayecto,
+    officeId,
+    destinoNombre,
+    destinoDireccion,
+    destinoLatitud,
+    destinoLongitud,
+    startTime,
+    durationMinutes,
+    points
+}) {
     return apiRequest("/api/reservations", {
         method: "POST",
         body: JSON.stringify({
             userId,
             carId,
+            tipoTrayecto,
             officeId,
+            destinoNombre,
+            destinoDireccion,
+            destinoLatitud,
+            destinoLongitud,
             horaSalida: startTime,
             duracionMinutos: durationMinutes,
             puntosPrevistos: points
