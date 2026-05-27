@@ -1,3 +1,5 @@
+ALTER TABLE IF EXISTS reservations ALTER COLUMN estado VARCHAR(32);
+
 INSERT INTO companies (id, nombre, codigo_empresa) VALUES
     (1, 'Telefonica', 'TEL2026'),
     (2, 'Repsol', 'REP2026'),
