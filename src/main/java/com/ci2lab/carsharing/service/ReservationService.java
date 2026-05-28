@@ -30,6 +30,7 @@ public class ReservationService {
     private static final int DEFAULT_POINTS = 320;
     private static final int MAX_ADVANCE_HOURS = 12;
     private static final int EXPIRATION_GRACE_MINUTES = 15;
+    private static final double RETURN_FROM_OFFICE_RADIUS_KM = 0.1;
     private static final List<ReservationStatus> LIVE_STATUSES = List.of(
             ReservationStatus.ACTIVE
     );
@@ -86,11 +87,17 @@ public class ReservationService {
             if (!office.getEmpresa().getId().equals(user.getEmpresa().getId())) {
                 throw new AppException("La oficina destino debe pertenecer a tu empresa");
             }
+            if (isCarAtOffice(car, office)) {
+                throw new AppException("El coche ya esta en esa oficina");
+            }
             destinationName = office.getNombre();
             destinationAddress = office.getDireccion();
             destinationLatitude = office.getLatitud();
             destinationLongitude = office.getLongitud();
         } else {
+            if (!isCarAtCompanyOffice(car, user)) {
+                throw new AppException("La vuelta solo se puede iniciar desde una oficina");
+            }
             destinationName = cleanText(request.destinoNombre());
             destinationAddress = cleanText(request.destinoDireccion());
             destinationLatitude = request.destinoLatitud();
@@ -265,6 +272,21 @@ public class ReservationService {
     }
 
     @Transactional
+    public ReservationResponse rate(Long reservationId, Long userId, Integer rating) {
+        Reservation reservation = findReservation(reservationId);
+        if (reservation.getEstado() != ReservationStatus.COMPLETED) {
+            throw new AppException("Solo se pueden valorar reservas finalizadas");
+        }
+        if (rating == null || rating < 1 || rating > 5) {
+            throw new AppException("La valoracion debe estar entre 1 y 5");
+        }
+        validateParticipantHistory(reservation, userId);
+
+        reservation.setSatisfactionRating(rating);
+        return ReservationResponse.from(reservation);
+    }
+
+    @Transactional
     public ReservationResponse findActiveByUser(Long userId) {
         completeExpiredReservations();
         return reservationRepository.findFirstByUsuariosApuntadosIdAndEstadoIn(userId, LIVE_STATUSES)
@@ -282,7 +304,12 @@ public class ReservationService {
 
     @Transactional
     public void completeExpiredReservations() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(EXPIRATION_GRACE_MINUTES);
+        LocalDateTime now = LocalDateTime.now();
+        reservationRepository
+                .findPendingReservationsToStart(ReservationStatus.ACTIVE, now)
+                .forEach(this::startReservationBySchedule);
+
+        LocalDateTime cutoff = now.minusMinutes(EXPIRATION_GRACE_MINUTES);
         reservationRepository
                 .findPendingReservationsToExpire(ReservationStatus.ACTIVE, cutoff)
                 .forEach(this::expireReservation);
@@ -324,6 +351,7 @@ public class ReservationService {
         car.setEstado(CarStatus.LIBRE);
         car.setLatitud(reservation.getDestinoLatitud());
         car.setLongitud(reservation.getDestinoLongitud());
+        carRepository.save(car);
 
         if (!reservation.isPuntosAsignados()) {
             int awardedPoints = pointsForCompletedTrip(reservation);
@@ -346,6 +374,11 @@ public class ReservationService {
         reservation.getCoche().setEstado(CarStatus.LIBRE);
     }
 
+    private void startReservationBySchedule(Reservation reservation) {
+        reservation.setTrayectoIniciado(true);
+        reservation.getCoche().setEstado(CarStatus.EN_USO);
+    }
+
     private void addParticipantHistory(Reservation reservation, User user) {
         ReservationParticipant participant = new ReservationParticipant(reservation, user);
         reservation.getParticipantes().add(participant);
@@ -357,6 +390,14 @@ public class ReservationService {
 
     private void validateParticipant(Reservation reservation, Long userId) {
         boolean isParticipant = reservation.getUsuariosApuntados().stream().anyMatch(user -> user.getId().equals(userId));
+        if (!isParticipant) {
+            throw new AppException("No formas parte de esta reserva");
+        }
+    }
+
+    private void validateParticipantHistory(Reservation reservation, Long userId) {
+        boolean isParticipant = reservation.getParticipantes().stream()
+                .anyMatch(participant -> participant.getUser().getId().equals(userId));
         if (!isParticipant) {
             throw new AppException("No formas parte de esta reserva");
         }
@@ -394,6 +435,31 @@ public class ReservationService {
             return 0;
         }
         return reservation.getPuntosPrevistos();
+    }
+
+    private boolean isCarAtCompanyOffice(Car car, User user) {
+        return officeRepository.findByEmpresaId(user.getEmpresa().getId()).stream()
+                .anyMatch(office -> isCarAtOffice(car, office));
+    }
+
+    private boolean isCarAtOffice(Car car, Office office) {
+        return distanceKm(
+                car.getLatitud(),
+                car.getLongitud(),
+                office.getLatitud(),
+                office.getLongitud()
+        ) <= RETURN_FROM_OFFICE_RADIUS_KM;
+    }
+
+    private double distanceKm(double fromLat, double fromLng, double toLat, double toLng) {
+        double earthRadiusKm = 6371;
+        double dLat = Math.toRadians(toLat - fromLat);
+        double dLng = Math.toRadians(toLng - fromLng);
+        double lat1 = Math.toRadians(fromLat);
+        double lat2 = Math.toRadians(toLat);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     private void updateCarStatusByOccupancy(Reservation reservation) {

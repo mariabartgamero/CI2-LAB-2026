@@ -63,6 +63,19 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     );
 
     @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
+    @Query("""
+            select r
+            from Reservation r
+            where r.estado = :status
+              and (r.trayectoIniciado = false or r.trayectoIniciado is null)
+              and r.horaSalida <= :now
+            """)
+    List<Reservation> findPendingReservationsToStart(
+            @Param("status") ReservationStatus status,
+            @Param("now") LocalDateTime now
+    );
+
+    @EntityGraph(attributePaths = {"coche", "empresa", "usuarioCreador", "usuariosApuntados", "destino"})
     List<Reservation> findByEstadoAndHoraSalidaLessThanEqualAndHoraEstimadaLlegadaAfter(
             ReservationStatus status,
             LocalDateTime now,

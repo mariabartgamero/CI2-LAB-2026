@@ -66,6 +66,13 @@ export function finishReservation(reservationId, userId) {
     });
 }
 
+export function rateReservation(reservationId, userId, rating) {
+    return apiRequest(`/api/reservations/${reservationId}/rating`, {
+        method: "PATCH",
+        body: JSON.stringify({ userId, rating })
+    });
+}
+
 export function getActiveReservation(userId) {
     return apiRequest(`/api/reservations/user/${userId}/active`);
 }

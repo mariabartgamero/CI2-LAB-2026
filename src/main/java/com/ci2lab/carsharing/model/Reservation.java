@@ -90,6 +90,8 @@ public class Reservation {
     @Column(nullable = false)
     private boolean puntosAsignados = false;
 
+    private Integer satisfactionRating;
+
     @Column(name = "trayecto_iniciado")
     private Boolean trayectoIniciado = false;
 
@@ -262,6 +264,14 @@ public class Reservation {
 
     public void setPuntosAsignados(boolean puntosAsignados) {
         this.puntosAsignados = puntosAsignados;
+    }
+
+    public Integer getSatisfactionRating() {
+        return satisfactionRating;
+    }
+
+    public void setSatisfactionRating(Integer satisfactionRating) {
+        this.satisfactionRating = satisfactionRating;
     }
 
     public boolean isTrayectoIniciado() {

@@ -94,37 +94,40 @@ function canStartReservation(reservation) {
 
 function bindActiveReservationActions(container, options) {
     container.querySelector("[data-start-active-reservation]")?.addEventListener("click", async (event) => {
-        await runButtonAction(event.currentTarget, "Iniciando...", () => (
+        await runButtonAction(event.currentTarget, () => (
             options.onStart?.(Number(event.currentTarget.dataset.startActiveReservation))
         ));
     });
 
     container.querySelector("[data-ready-active-reservation]")?.addEventListener("click", async (event) => {
-        await runButtonAction(event.currentTarget, "Marcando...", () => (
+        await runButtonAction(event.currentTarget, () => (
             options.onReady?.(Number(event.currentTarget.dataset.readyActiveReservation))
         ));
     });
 
     container.querySelector("[data-cancel-active-reservation]")?.addEventListener("click", async (event) => {
-        await runButtonAction(event.currentTarget, "Cancelando...", () => (
+        await runButtonAction(event.currentTarget, () => (
             options.onCancel?.(Number(event.currentTarget.dataset.cancelActiveReservation))
         ));
     });
 
     container.querySelector("[data-finish-active-reservation]")?.addEventListener("click", async (event) => {
-        await runButtonAction(event.currentTarget, "Finalizando...", () => (
+        await runButtonAction(event.currentTarget, () => (
             options.onFinish?.(Number(event.currentTarget.dataset.finishActiveReservation))
         ));
     });
 }
 
-async function runButtonAction(button, loadingText, action) {
+async function runButtonAction(button, action) {
     const defaultText = button.textContent;
     button.disabled = true;
-    button.textContent = loadingText;
-    await action?.();
-    button.disabled = false;
-    button.textContent = defaultText;
+    button.textContent = "Cargando...";
+    try {
+        await action?.();
+    } finally {
+        button.disabled = false;
+        button.textContent = defaultText;
+    }
 }
 
 function statusLabel(status) {

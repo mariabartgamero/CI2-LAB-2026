@@ -64,6 +64,7 @@ function reservationCard(reservation, user) {
             <span>Coche: ${reservation.matricula}</span>
             <span>Rol: ${reservationRole(reservation, user)}</span>
             <span>${reservation.plazasOcupadas}/5 ocupantes · ${points} puntos</span>
+            ${isCompleted(status) ? `<span>${ratingLabel(reservation.satisfactionRating)}</span>` : ""}
             ${points === 0 ? "<span>Necesitas al menos 2 ocupantes para ganar puntos.</span>" : ""}
         </article>
     `;
@@ -100,6 +101,12 @@ function destinationName(reservation) {
 
 function effectivePoints(reservation) {
     return Number(reservation.plazasOcupadas) >= 2 ? reservation.puntosPrevistos : 0;
+}
+
+function ratingLabel(value) {
+    const rating = Number(value);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return "Sin valorar";
+    return `Valoracion: ${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
 }
 
 function statusLabel(status) {

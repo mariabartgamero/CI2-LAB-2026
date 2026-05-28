@@ -1,10 +1,11 @@
-import { geocodeAddress, tripMetrics } from "../utils/location.js";
+import { distanceKm, geocodeAddress, tripMetrics } from "../utils/location.js";
 import { defaultStartTimeValue, localDateTimePayload, validateStartTime } from "../utils/dateTime.js";
 import { API_BASE_URL } from "../services/api.js";
 
 const CAR_BRAND = "MERCEDES EQA";
 const CAR_MODEL = "Mercedes-Benz EQA Electrico";
 const CAR_IMAGE_URL = `${API_BASE_URL}/imagenes/coche.png`;
+const OFFICE_RETURN_RADIUS_KM = 0.1;
 
 export function renderCarBottomSheet(container, car, activeReservation, offices, currentUser, onAction, onClose) {
     if (!car) {
@@ -14,6 +15,7 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
     }
 
     const selectedOffice = resolveInitialOffice(car, offices);
+    const canReturnFromCarLocation = isCarAtOffice(car, offices);
     const isAvailable = car.estado === "LIBRE";
     const hasReservation = Boolean(car.reserva);
     const metrics = tripMetrics(car, hasReservation ? destinationFromReservation(car.reserva) : selectedOffice);
@@ -73,13 +75,17 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
                 Tipo de trayecto
                 <select id="tripTypeSelect">
                     <option value="IDA" selected>Ida a oficina</option>
-                    <option value="VUELTA">Vuelta a direccion</option>
+                    <option value="VUELTA" ${canReturnFromCarLocation ? "" : "disabled"}>Vuelta a direccion</option>
                 </select>
             </label>
             <label class="time-field ida-field">
                 Oficina destino
                 <select id="officeSelect">
-                    ${offices.map((office) => `<option value="${office.id}" ${office.id === selectedOffice.id ? "selected" : ""}>${office.nombre}</option>`).join("")}
+                    ${offices.map((office) => `
+                        <option value="${office.id}" ${selectedOffice && office.id === selectedOffice.id ? "selected" : ""} ${isCarAtSpecificOffice(car, office) ? "disabled" : ""}>
+                            ${office.nombre}
+                        </option>
+                    `).join("")}
                 </select>
             </label>
             <label class="time-field return-field hidden">
@@ -106,10 +112,15 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
     const officeSelect = container.querySelector("#officeSelect");
     const returnAddressInput = container.querySelector("#returnAddressInput");
     const refreshArrival = () => {
-        const tipoTrayecto = tripTypeSelect?.value ?? "IDA";
+        let tipoTrayecto = tripTypeSelect?.value ?? "IDA";
+        if (tipoTrayecto === "VUELTA" && !canReturnFromCarLocation) {
+            tripTypeSelect.value = "IDA";
+            tipoTrayecto = "IDA";
+            showSheetError(container, "La vuelta solo se puede iniciar desde una oficina");
+        }
         container.querySelector(".ida-field")?.classList.toggle("hidden", tipoTrayecto !== "IDA");
         container.querySelector(".return-field")?.classList.toggle("hidden", tipoTrayecto !== "VUELTA");
-        clearSheetError(container);
+        if (tipoTrayecto !== "VUELTA" || canReturnFromCarLocation) clearSheetError(container);
 
         if (tipoTrayecto === "VUELTA") {
             const address = returnAddressInput.value.trim();
@@ -120,6 +131,10 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
         }
 
         const liveMetrics = idaTripMetrics(car, offices, selectedOffice, officeSelect);
+        if (liveMetrics.error) {
+            showSheetError(container, liveMetrics.error);
+            return;
+        }
         container.querySelector("#destinationName").textContent = liveMetrics.destination.name;
         container.querySelector(".trip-card p").textContent = `${liveMetrics.distanceLabel} · ${liveMetrics.minutes} min aprox.`;
         container.querySelector(".points-row strong").textContent = `${liveMetrics.points} puntos`;
@@ -135,7 +150,7 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
             showSheetError(container, error);
             return;
         }
-        await runButtonAction(event.currentTarget, "Reservando...", async () => {
+        await runButtonAction(event.currentTarget, async () => {
             const liveMetrics = await currentTripMetrics(car, offices, selectedOffice, tripTypeSelect, officeSelect, returnAddressInput);
             if (liveMetrics?.error) {
                 showSheetError(container, liveMetrics.error);
@@ -152,30 +167,36 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
         });
     });
     container.querySelector(".join-action")?.addEventListener("click", async (event) => {
-        await runButtonAction(event.currentTarget, "Uniendo...", () => onAction(car, metrics, "join"));
+        await runButtonAction(event.currentTarget, () => onAction(car, metrics, "join"));
     });
     container.querySelector(".cancel-trip-action")?.addEventListener("click", async (event) => {
-        await runButtonAction(event.currentTarget, "Cancelando...", () => onAction(car, metrics, "cancel"));
+        await runButtonAction(event.currentTarget, () => onAction(car, metrics, "cancel"));
     });
 }
 
-async function runButtonAction(button, loadingText, action) {
+async function runButtonAction(button, action) {
     const defaultText = button.textContent;
     button.disabled = true;
-    button.textContent = loadingText;
-    await action?.();
-    button.disabled = false;
-    button.textContent = defaultText;
+    button.textContent = "Cargando...";
+    try {
+        await action?.();
+    } finally {
+        button.disabled = false;
+        button.textContent = defaultText;
+    }
 }
 
 function resolveInitialOffice(car, offices) {
     if (car.reserva?.destino) return car.reserva.destino;
-    return offices[0];
+    return offices.find((office) => !isCarAtSpecificOffice(car, office)) ?? offices[0];
 }
 
 async function currentTripMetrics(car, offices, selectedOffice, tripTypeSelect, officeSelect, returnAddressInput) {
     const tipoTrayecto = tripTypeSelect?.value ?? "IDA";
     if (tipoTrayecto === "VUELTA") {
+        if (!isCarAtOffice(car, offices)) {
+            return { error: "La vuelta solo se puede iniciar desde una oficina" };
+        }
         const address = returnAddressInput?.value.trim();
         if (!address) return { error: "No se encontró esa dirección" };
 
@@ -198,6 +219,9 @@ async function currentTripMetrics(car, offices, selectedOffice, tripTypeSelect, 
 
 function idaTripMetrics(car, offices, selectedOffice, officeSelect) {
     const selectedDestination = findOffice(offices, Number(officeSelect?.value)) || selectedOffice;
+    if (!selectedDestination || isCarAtSpecificOffice(car, selectedDestination)) {
+        return { error: "El coche ya esta en esa oficina" };
+    }
     return {
         ...tripMetrics(car, selectedDestination),
         tipoTrayecto: "IDA",
@@ -222,6 +246,21 @@ function destinationFromReservation(reservation) {
 
 function findOffice(offices, officeId) {
     return offices.find((office) => office.id === officeId);
+}
+
+function isCarAtOffice(car, offices) {
+    return offices.some((office) => (
+        isCarAtSpecificOffice(car, office)
+    ));
+}
+
+function isCarAtSpecificOffice(car, office) {
+    return (
+        distanceKm(
+            { lat: Number(car.latitud), lng: Number(car.longitud) },
+            { lat: Number(office.latitud), lng: Number(office.longitud) }
+        ) <= OFFICE_RETURN_RADIUS_KM
+    );
 }
 
 function showSheetError(container, message) {

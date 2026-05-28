@@ -31,6 +31,8 @@ public record ReservationResponse(
         int plazasDisponibles,
         boolean puntosAsignados,
         ParticipantStatus estadoUsuario,
+        boolean trayectoIniciado,
+        Integer satisfactionRating,
         LocalDateTime fechaCreacion
 ) {
     public static ReservationResponse from(Reservation reservation) {
@@ -65,6 +67,8 @@ public record ReservationResponse(
                 reservation.getCoche().getPlazasTotales() - reservation.getPlazasOcupadas(),
                 reservation.isPuntosAsignados(),
                 participantStatus,
+                reservation.isTrayectoIniciado(),
+                reservation.getSatisfactionRating(),
                 reservation.getFechaCreacion()
         );
     }
