@@ -9,10 +9,21 @@ import org.springframework.jdbc.core.JdbcTemplate;
 public class DatabaseMigrationConfig {
 
     @Bean
-    CommandLineRunner allowReturnReservationsWithoutOffice(JdbcTemplate jdbcTemplate) {
-        return args -> jdbcTemplate.execute("""
+    CommandLineRunner applyDatabaseMigrations(JdbcTemplate jdbcTemplate) {
+        return args -> {
+            jdbcTemplate.execute("""
                 ALTER TABLE IF EXISTS reservations
                 ALTER COLUMN office_id DROP NOT NULL
                 """);
+            jdbcTemplate.execute("""
+                ALTER TABLE IF EXISTS reservations
+                DROP CONSTRAINT IF EXISTS reservations_estado_check
+                """);
+            jdbcTemplate.execute("""
+                ALTER TABLE IF EXISTS reservations
+                ADD CONSTRAINT reservations_estado_check
+                CHECK (estado IN ('ACTIVE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED'))
+                """);
+        };
     }
 }
