@@ -1,6 +1,4 @@
-export const API_BASE_URL = window.location.port === "8080"
-    ? window.location.origin
-    : `http://${window.location.hostname}:8080`;
+export const API_BASE_URL = "";
 
 export async function apiRequest(path, options = {}) {
     const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
@@ -13,6 +11,7 @@ export async function apiRequest(path, options = {}) {
         ...options,
         headers
     });
+
     const text = await response.text();
     const data = text ? JSON.parse(text) : null;
 
@@ -22,3 +21,5 @@ export async function apiRequest(path, options = {}) {
 
     return data;
 }
+
+
