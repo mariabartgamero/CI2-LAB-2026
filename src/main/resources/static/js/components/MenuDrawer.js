@@ -1,6 +1,7 @@
 import { formatDateTime } from "../utils/dateTime.js";
+import { renderIncidentChat } from "./IncidentChat.js";
 
-export function renderMenuDrawer(container, { user, reservations }, onStart, onCancel, onLogout, onClose) {
+export function renderMenuDrawer(container, { user, reservations, incidencias = [], activeReservation }, onStart, onCancel, onCreateIncident, onLogout, onClose) {
     const completed = reservations.filter((reservation) => isCompleted(reservationStatusForUser(reservation)));
     const cancelled = reservations.filter((reservation) => isCancelled(reservationStatusForUser(reservation)));
     const expired = reservations.filter((reservation) => isExpired(reservationStatusForUser(reservation)));
@@ -36,6 +37,11 @@ export function renderMenuDrawer(container, { user, reservations }, onStart, onC
                 ${expired.length ? expired.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas caducadas.</p>"}
             </section>
 
+            <section class="drawer-section">
+                <h3>Incidencias</h3>
+                <div id="incidentChatMount"></div>
+            </section>
+
             <button class="button secondary logout-action" type="button">Cerrar sesion</button>
         </aside>
     `;
@@ -43,6 +49,11 @@ export function renderMenuDrawer(container, { user, reservations }, onStart, onC
     container.querySelector(".drawer-backdrop").addEventListener("click", onClose);
     container.querySelector(".drawer-close").addEventListener("click", onClose);
     container.querySelector(".logout-action").addEventListener("click", onLogout);
+    renderIncidentChat(
+            container.querySelector("#incidentChatMount"),
+            { user, incidencias, activeReservation },
+            onCreateIncident
+    );
 }
 
 export function closeMenuDrawer(container) {

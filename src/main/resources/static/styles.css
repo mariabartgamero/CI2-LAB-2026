@@ -911,7 +911,8 @@ input.invalid {
 }
 
 .profile-summary,
-.drawer-reservation {
+.drawer-reservation,
+.incident-card {
     background: #ffffff;
     border: 1px solid var(--line);
     border-radius: 12px;
@@ -922,22 +923,125 @@ input.invalid {
 .profile-summary span,
 .profile-summary p,
 .drawer-reservation strong,
-.drawer-reservation span {
+.drawer-reservation span,
+.incident-card strong,
+.incident-card span,
+.incident-card p {
     display: block;
 }
 
 .profile-summary span,
 .profile-summary p,
 .drawer-reservation span,
+.incident-card span,
+.incident-card p,
 .empty-copy {
     color: var(--muted);
     font-size: 13px;
 }
 
-.drawer-reservation {
+.drawer-reservation,
+.incident-card {
     display: grid;
     gap: 7px;
     box-shadow: 0 8px 22px rgb(16 24 40 / 8%);
+}
+
+.incident-chat {
+    background: #f8fbfd;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+}
+
+.incident-thread {
+    display: grid;
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.chat-row {
+    display: flex;
+}
+
+.chat-row.bot {
+    justify-content: flex-start;
+}
+
+.chat-row.user {
+    justify-content: flex-end;
+}
+
+.chat-bubble {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.35;
+    max-width: 86%;
+    padding: 9px 11px;
+    white-space: pre-line;
+}
+
+.chat-row.user .chat-bubble {
+    background: var(--cyan);
+    border-color: var(--cyan);
+    color: #ffffff;
+}
+
+.incident-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.incident-actions.two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.incident-choice {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--navy);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 800;
+    margin-top: 0;
+    min-height: 40px;
+    padding: 8px 12px;
+    touch-action: manipulation;
+    width: auto;
+}
+
+.primary-choice {
+    background: var(--cyan);
+    border-color: var(--cyan);
+    color: #ffffff;
+}
+
+.incident-description {
+    display: grid;
+    gap: 8px;
+}
+
+.incident-description .button {
+    margin-top: 0;
+}
+
+.incident-list {
+    display: grid;
+    gap: 8px;
+}
+
+.incident-card p {
+    margin: 0;
 }
 
 .drawer-reservation-head {

@@ -2,6 +2,7 @@ import { renderActiveReservationCard } from "../components/ActiveReservationCard
 import { renderCarBottomSheet } from "../components/CarBottomSheet.js";
 import { closeMenuDrawer, renderMenuDrawer } from "../components/MenuDrawer.js";
 import { getVisibleCars } from "../services/carService.js";
+import { createIncidencia, getUserIncidencias } from "../services/incidenciaService.js";
 import { getCompanyOffices } from "../services/officeService.js";
 import { cancelReservation, finishReservation, getActiveReservation, getUserReservations, joinReservation, markReservationReady, rateReservation, reserveCar, startReservation } from "../services/reservationService.js";
 import { getUser } from "../services/userService.js";
@@ -22,6 +23,7 @@ const screen = {
     selectedCar: null,
     activeReservation: null,
     reservations: [],
+    incidencias: [],
     sessionId: 0,
     activeReservationPollTimer: null,
     refreshId: 0,
@@ -155,6 +157,7 @@ function clearMapScreen() {
     screen.selectedCar = null;
     screen.activeReservation = null;
     screen.reservations = [];
+    screen.incidencias = [];
     screen.refreshId++;
     screen.officesCompanyId = null;
     screen.carRenderKey = "";
@@ -478,7 +481,12 @@ async function handleCarAction(car, metrics, action = "reserve") {
 
 async function openMenu() {
     try {
-        screen.reservations = await getUserReservations(screen.user.id);
+        const [reservations, incidencias] = await Promise.all([
+            getUserReservations(screen.user.id),
+            getUserIncidencias(screen.user.id)
+        ]);
+        screen.reservations = reservations;
+        screen.incidencias = incidencias;
     } catch (error) {
         showToast(error.message, "error");
     }
@@ -491,6 +499,7 @@ function renderOpenMenu() {
         {
             user: screen.user,
             reservations: screen.reservations,
+            incidencias: screen.incidencias,
             activeReservation: screen.activeReservation
         },
         async (reservationId) => {
@@ -500,6 +509,11 @@ function renderOpenMenu() {
         async (reservationId) => {
             await handleCancelReservation({ id: reservationId });
             closeMenuDrawer(document.querySelector("#menuDrawer"));
+        },
+        async (payload) => {
+            const incidencia = await createIncidencia(payload);
+            screen.incidencias = [incidencia, ...screen.incidencias];
+            return incidencia;
         },
         screen.logout,
         () => closeMenuDrawer(document.querySelector("#menuDrawer"))
