@@ -31,6 +31,8 @@ public class ReservationService {
     private static final int DEFAULT_POINTS = 320;
     private static final int MAX_ADVANCE_HOURS = 12;
     private static final int EXPIRATION_GRACE_MINUTES = 15;
+    private static final double KM_PER_BATTERY_PERCENT = 4.3;
+    private static final int MIN_BATTERY_PERCENT = 10;
     private static final double RETURN_FROM_OFFICE_RADIUS_KM = 0.1;
     private static final Duration TIMED_RESERVATION_SYNC_INTERVAL = Duration.ofSeconds(5);
     private static final List<ReservationStatus> LIVE_STATUSES = List.of(
@@ -147,6 +149,7 @@ public class ReservationService {
         addParticipantHistory(reservation, user);
 
         car.setEstado(CarStatus.RESERVA_PENDIENTE);
+        car.setCargando(false);
         return ReservationResponse.from(reservationRepository.save(reservation));
     }
 
@@ -205,6 +208,7 @@ public class ReservationService {
         reservation.setHoraEstimadaLlegada(LocalDateTime.now().plusMinutes(durationMinutes));
         reservation.setTrayectoIniciado(true);
         reservation.getCoche().setEstado(CarStatus.EN_USO);
+        reservation.getCoche().setCargando(false);
         return ReservationResponse.from(reservation);
     }
 
@@ -368,6 +372,8 @@ public class ReservationService {
         car.setEstado(CarStatus.LIBRE);
         car.setLatitud(reservation.getDestinoLatitud());
         car.setLongitud(reservation.getDestinoLongitud());
+        drainBattery(car, reservation);
+        car.setCargando(reservation.getTipoTrayecto() == ReservationTripType.IDA);
         carRepository.save(car);
 
         if (!reservation.isPuntosAsignados()) {
@@ -488,6 +494,18 @@ public class ReservationService {
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
                 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
         return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private void drainBattery(Car car, Reservation reservation) {
+        Double destLat = reservation.getDestinoLatitud();
+        Double destLng = reservation.getDestinoLongitud();
+        if (destLat == null || destLng == null) return;
+        double km = distanceKm(
+                reservation.getOrigenLatitud(), reservation.getOrigenLongitud(),
+                destLat, destLng
+        );
+        int drain = (int) Math.round(km / KM_PER_BATTERY_PERCENT);
+        car.setBateria(Math.max(MIN_BATTERY_PERCENT, car.getBateria() - drain));
     }
 
     private void updateCarStatusByOccupancy(Reservation reservation) {

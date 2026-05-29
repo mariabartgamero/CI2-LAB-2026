@@ -35,6 +35,9 @@ public class Car {
     @Column(nullable = false)
     private int plazasTotales = 5;
 
+    @Column(nullable = false, columnDefinition = "boolean not null default false")
+    private boolean cargando = false;
+
     public Long getId() {
         return id;
     }
@@ -85,5 +88,13 @@ public class Car {
 
     public void setPlazasTotales(int plazasTotales) {
         this.plazasTotales = plazasTotales;
+    }
+
+    public boolean isCargando() {
+        return cargando;
+    }
+
+    public void setCargando(boolean cargando) {
+        this.cargando = cargando;
     }
 }

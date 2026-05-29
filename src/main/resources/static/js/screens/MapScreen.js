@@ -1,5 +1,6 @@
 import { renderActiveReservationCard } from "../components/ActiveReservationCard.js";
 import { renderCarBottomSheet } from "../components/CarBottomSheet.js";
+import { renderIncidentChat, resetIncidentChatState } from "../components/IncidentChat.js";
 import { closeMenuDrawer, renderMenuDrawer } from "../components/MenuDrawer.js";
 import { getVisibleCars } from "../services/carService.js";
 import { createIncidencia, getUserIncidencias } from "../services/incidenciaService.js";
@@ -80,6 +81,7 @@ function initMap() {
 function bindActions() {
     document.querySelector("#locateBtn").onclick = fitMadrid;
     document.querySelector("#menuBtn").onclick = openMenu;
+    document.querySelector("#incidentBtn").onclick = openIncidentChat;
 }
 
 async function refresh(sessionId = screen.sessionId, options = {}) {
@@ -170,6 +172,7 @@ function clearMapScreen() {
     clearNode("#activeReservation", true);
     clearNode("#carBottomSheet", true);
     clearNode("#menuDrawer", true);
+    clearNode("#incidentWindow", true);
     clearNode("#ratingModal", true);
     clearNode("#toast", true);
 
@@ -496,28 +499,53 @@ async function openMenu() {
 function renderOpenMenu() {
     renderMenuDrawer(
         document.querySelector("#menuDrawer"),
-        {
-            user: screen.user,
-            reservations: screen.reservations,
-            incidencias: screen.incidencias,
-            activeReservation: screen.activeReservation
-        },
-        async (reservationId) => {
-            await handleStartReservation({ id: reservationId });
-            closeMenuDrawer(document.querySelector("#menuDrawer"));
-        },
-        async (reservationId) => {
-            await handleCancelReservation({ id: reservationId });
-            closeMenuDrawer(document.querySelector("#menuDrawer"));
-        },
+        { user: screen.user, reservations: screen.reservations, incidencias: screen.incidencias },
+        screen.logout,
+        () => closeMenuDrawer(document.querySelector("#menuDrawer"))
+    );
+}
+
+async function openIncidentChat() {
+    try {
+        const reservations = await getUserReservations(screen.user.id);
+        screen.reservations = reservations;
+    } catch (error) {
+        showToast(error.message, "error");
+    }
+    renderIncidentChatWindow();
+}
+
+function renderIncidentChatWindow() {
+    const container = document.querySelector("#incidentWindow");
+    container.classList.remove("hidden");
+    container.innerHTML = `
+        <div class="incident-window-backdrop"></div>
+        <div class="incident-window-panel">
+            <div class="incident-window-head">
+                <h2>Reportar incidencia</h2>
+                <button class="sheet-close" type="button" aria-label="Cerrar">×</button>
+            </div>
+            <div class="incident-window-body">
+                <div id="incidentChatMount"></div>
+            </div>
+        </div>
+    `;
+    container.querySelector(".incident-window-backdrop").addEventListener("click", closeIncidentWindow);
+    container.querySelector(".sheet-close").addEventListener("click", closeIncidentWindow);
+    renderIncidentChat(
+        container.querySelector("#incidentChatMount"),
+        { user: screen.user, reservations: screen.reservations },
         async (payload) => {
             const incidencia = await createIncidencia(payload);
             screen.incidencias = [incidencia, ...screen.incidencias];
             return incidencia;
-        },
-        screen.logout,
-        () => closeMenuDrawer(document.querySelector("#menuDrawer"))
+        }
     );
+}
+
+function closeIncidentWindow() {
+    clearNode("#incidentWindow", true);
+    resetIncidentChatState();
 }
 
 function rerenderMenuIfOpen() {

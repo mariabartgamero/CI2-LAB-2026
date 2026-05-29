@@ -52,27 +52,41 @@ const TYPES_BY_CATEGORY = {
     ]
 };
 
+const OPERATOR_PHONE = "+34672184744";
+
 let chatState = initialChatState();
 
-export function renderIncidentChat(container, { user, incidencias = [], activeReservation }, onCreate) {
+export function resetIncidentChatState() {
+    chatState = initialChatState();
+}
+
+export function renderIncidentChat(container, { user, reservations = [] }, onCreate) {
     container.innerHTML = `
         <div class="incident-chat">
             <div class="incident-thread">
                 ${chatState.messages.map(messageBubble).join("")}
             </div>
-            ${actionsTemplate()}
+            ${actionsTemplate(reservations)}
             ${descriptionTemplate()}
         </div>
-        <div class="incident-list">
-            <h4>Mis incidencias</h4>
-            ${incidencias.length ? incidencias.map(incidentCard).join("") : "<p class='empty-copy'>Todavia no has creado incidencias.</p>"}
-        </div>
     `;
-
-    bindChatActions(container, user, activeReservation, incidencias, onCreate);
+    bindChatActions(container, user, reservations, onCreate);
 }
 
-function bindChatActions(container, user, activeReservation, incidencias, onCreate) {
+function bindChatActions(container, user, reservations, onCreate) {
+    container.querySelectorAll("[data-incident-reservation]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const raw = button.dataset.incidentReservation;
+            chatState.reservationId = raw ? Number(raw) : null;
+            const reservation = reservations.find((r) => r.id === chatState.reservationId);
+            chatState.matricula = reservation?.matricula ?? null;
+            addUserMessage(reservation ? reservationLabel(reservation) : "Sin reserva asociada");
+            addBotMessage("¿Qué tipo de incidencia quieres comunicar?");
+            chatState.step = "category";
+            renderIncidentChat(container, { user, reservations }, onCreate);
+        });
+    });
+
     container.querySelectorAll("[data-incident-category]").forEach((button) => {
         button.addEventListener("click", () => {
             const value = button.dataset.incidentCategory;
@@ -82,7 +96,7 @@ function bindChatActions(container, user, activeReservation, incidencias, onCrea
             addUserMessage(labelForCategory(value));
             addBotMessage("Cuéntame qué problema has tenido.");
             chatState.step = "type";
-            renderIncidentChat(container, { user, incidencias, activeReservation }, onCreate);
+            renderIncidentChat(container, { user, reservations }, onCreate);
         });
     });
 
@@ -93,7 +107,7 @@ function bindChatActions(container, user, activeReservation, incidencias, onCrea
             addUserMessage(labelForType(value));
             addBotMessage("Describe brevemente qué ha ocurrido.");
             chatState.step = "description";
-            renderIncidentChat(container, { user, incidencias, activeReservation }, onCreate);
+            renderIncidentChat(container, { user, reservations }, onCreate);
         });
     });
 
@@ -106,7 +120,7 @@ function bindChatActions(container, user, activeReservation, incidencias, onCrea
         addUserMessage(description);
         addBotMessage(summaryText());
         chatState.step = "confirm";
-        renderIncidentChat(container, { user, incidencias, activeReservation }, onCreate);
+        renderIncidentChat(container, { user, reservations }, onCreate);
     });
 
     container.querySelector("[data-incident-confirm]")?.addEventListener("click", async (event) => {
@@ -114,42 +128,92 @@ function bindChatActions(container, user, activeReservation, incidencias, onCrea
         button.disabled = true;
         button.textContent = "Cargando...";
         try {
-            const created = await onCreate?.({
+            const reservation = reservations.find((r) => r.id === chatState.reservationId);
+            await onCreate?.({
                 userId: user.id,
-                reservationId: activeReservation?.id ?? null,
-                carId: activeReservation?.cocheId ?? null,
+                reservationId: chatState.reservationId,
+                carId: reservation?.cocheId ?? null,
                 categoria: chatState.category,
                 tipoIncidencia: chatState.type,
                 descripcion: chatState.description
             });
             addBotMessage("Tu incidencia se ha creado correctamente.");
-            chatState = {
-                ...initialChatState(),
-                messages: [...chatState.messages, botMessage("Puedes comunicar otra incidencia cuando quieras.")]
-            };
-            renderIncidentChat(
-                    container,
-                    { user, incidencias: created ? [created, ...incidencias] : incidencias, activeReservation },
-                    onCreate
-            );
+            addBotMessage("¿Quieres ponerte en contacto con un operario?");
+            const msgs = chatState.messages;
+            chatState = { ...initialChatState(), step: "contact", messages: msgs };
+            renderIncidentChat(container, { user, reservations }, onCreate);
         } catch (error) {
             addBotMessage(error.message);
             chatState.step = "confirm";
-            renderIncidentChat(container, { user, incidencias, activeReservation }, onCreate);
+            renderIncidentChat(container, { user, reservations }, onCreate);
         }
     });
 
     container.querySelector("[data-incident-cancel]")?.addEventListener("click", () => {
         addBotMessage("La incidencia ha sido cancelada.");
+        const msgs = chatState.messages;
         chatState = {
             ...initialChatState(),
-            messages: [...chatState.messages, botMessage("Hola, ¿qué tipo de incidencia quieres comunicar?")]
+            messages: [...msgs, botMessage("¿Para qué reserva quieres comunicar la nueva incidencia?")]
         };
-        renderIncidentChat(container, { user, incidencias, activeReservation }, onCreate);
+        renderIncidentChat(container, { user, reservations }, onCreate);
+    });
+
+    container.querySelectorAll("[data-incident-contact]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const value = button.dataset.incidentContact;
+            if (value === "yes") {
+                addUserMessage("Sí");
+                addBotMessage("Aquí tienes el número de contacto del operario.");
+                chatState.step = "call";
+            } else {
+                addUserMessage("No");
+                addBotMessage("¿Quieres comunicar otra incidencia?");
+                chatState.step = "restart";
+            }
+            renderIncidentChat(container, { user, reservations }, onCreate);
+        });
+    });
+
+    container.querySelector("[data-incident-done]")?.addEventListener("click", () => {
+        addBotMessage("¿Quieres comunicar otra incidencia?");
+        chatState.step = "restart";
+        renderIncidentChat(container, { user, reservations }, onCreate);
+    });
+
+    container.querySelectorAll("[data-incident-restart]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const value = button.dataset.incidentRestart;
+            if (value === "yes") {
+                addUserMessage("Sí");
+                const msgs = chatState.messages;
+                chatState = {
+                    ...initialChatState(),
+                    messages: [...msgs, botMessage("¿Para qué reserva quieres reportar la nueva incidencia?")]
+                };
+            } else {
+                addUserMessage("No");
+                addBotMessage("¡Hasta pronto! Tu incidencia ha quedado registrada.");
+                chatState.step = "done";
+            }
+            renderIncidentChat(container, { user, reservations }, onCreate);
+        });
     });
 }
 
-function actionsTemplate() {
+function actionsTemplate(reservations) {
+    if (chatState.step === "reservation") {
+        const recent = recentReservations(reservations);
+        return `
+            <div class="incident-actions incident-actions-col">
+                ${recent.map((r) => `
+                    <button class="incident-choice" data-incident-reservation="${r.id}" type="button">${escapeHtml(reservationLabel(r))}</button>
+                `).join("")}
+                <button class="incident-choice" data-incident-reservation="" type="button">Sin reserva asociada</button>
+            </div>
+        `;
+    }
+
     if (chatState.step === "category") {
         return `<div class="incident-actions">${CATEGORIES.map((category) => `
             <button class="incident-choice" data-incident-category="${category.value}" type="button">${category.label}</button>
@@ -171,6 +235,33 @@ function actionsTemplate() {
         `;
     }
 
+    if (chatState.step === "contact") {
+        return `
+            <div class="incident-actions two">
+                <button class="incident-choice primary-choice" data-incident-contact="yes" type="button">Sí</button>
+                <button class="incident-choice" data-incident-contact="no" type="button">No</button>
+            </div>
+        `;
+    }
+
+    if (chatState.step === "call") {
+        return `
+            <div class="incident-actions two">
+                <a class="incident-choice primary-choice" href="tel:${OPERATOR_PHONE}">📞 Llamar</a>
+                <button class="incident-choice" data-incident-done type="button">Continuar</button>
+            </div>
+        `;
+    }
+
+    if (chatState.step === "restart") {
+        return `
+            <div class="incident-actions two">
+                <button class="incident-choice primary-choice" data-incident-restart="yes" type="button">Sí</button>
+                <button class="incident-choice" data-incident-restart="no" type="button">No</button>
+            </div>
+        `;
+    }
+
     return "";
 }
 
@@ -184,7 +275,7 @@ function descriptionTemplate() {
     `;
 }
 
-function incidentCard(incidencia) {
+export function incidentCard(incidencia) {
     return `
         <article class="incident-card">
             <div class="drawer-reservation-head">
@@ -192,6 +283,7 @@ function incidentCard(incidencia) {
                 <span class="reservation-status">${labelForStatus(incidencia.estado)}</span>
             </div>
             <span>${labelForType(incidencia.tipoIncidencia)}</span>
+            ${incidencia.matricula ? `<span>Matricula: ${escapeHtml(incidencia.matricula)}</span>` : ""}
             <p>${escapeHtml(incidencia.descripcion)}</p>
             <span>Prioridad: ${labelForPriority(incidencia.prioridad)}</span>
             <span>${formatDateTime(incidencia.fechaCreacion)}</span>
@@ -208,22 +300,42 @@ function messageBubble(message) {
 }
 
 function summaryText() {
-    return [
-        "Resumen de la incidencia:",
+    const lines = [
+        "Resumen de la incidencia:"
+    ];
+    if (chatState.matricula) lines.push(`Matricula: ${chatState.matricula}`);
+    lines.push(
         `Categoria: ${labelForCategory(chatState.category)}`,
         `Tipo: ${labelForType(chatState.type)}`,
         `Descripcion: ${chatState.description}`
-    ].join("\n");
+    );
+    return lines.join("\n");
 }
 
 function initialChatState() {
     return {
-        step: "category",
+        step: "reservation",
+        reservationId: null,
+        matricula: null,
         category: "",
         type: "",
         description: "",
-        messages: [botMessage("Hola, ¿qué tipo de incidencia quieres comunicar?")]
+        messages: [botMessage("¿Para qué reserva quieres reportar la incidencia?")]
     };
+}
+
+function recentReservations(reservations) {
+    return [...reservations]
+        .sort((a, b) => new Date(b.horaSalida) - new Date(a.horaSalida))
+        .slice(0, 3);
+}
+
+function reservationLabel(reservation) {
+    return `${destinationName(reservation)} · ${formatDateTime(reservation.horaSalida)}`;
+}
+
+function destinationName(reservation) {
+    return reservation.destinoNombre ?? reservation.destino?.nombre ?? "Destino";
 }
 
 function addBotMessage(text) {

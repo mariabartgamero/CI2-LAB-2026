@@ -13,6 +13,7 @@ import com.ci2lab.carsharing.repository.ReservationRepository;
 import com.ci2lab.carsharing.repository.UserRepository;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +63,18 @@ public class CarService {
                         && car.reserva() != null
                         && car.reserva().empresaId().equals(user.getEmpresa().getId()))
                 .toList();
+    }
+
+    @Scheduled(fixedRate = 10000)
+    @Transactional
+    public void chargeBatteries() {
+        carRepository.findByCargandoTrue().forEach(car -> {
+            if (car.getBateria() >= 100) {
+                car.setCargando(false);
+            } else {
+                car.setBateria(Math.min(100, car.getBateria() + 1));
+            }
+        });
     }
 
     private CarMapResponse toMapResponse(Car car) {

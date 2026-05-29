@@ -47,10 +47,11 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
             </div>
         </div>
         <div class="car-stats">
-            <span>${car.bateria}%</span>
+            <span class="battery-stat${car.cargando ? " battery-charging" : ""}">${car.cargando ? "⚡ " : ""}${car.bateria}%</span>
             <span>${metrics.autonomyKm} km</span>
             <span>${hasReservation ? `${availableSeats} plazas libres` : "Electrico corporativo"}</span>
         </div>
+        ${car.cargando ? `<p class="charging-note">Cargando en oficina · +1% cada 10 s</p>` : ""}
         ${hasReservation ? `
             <div class="occupants">
                 <span>Ocupantes</span>

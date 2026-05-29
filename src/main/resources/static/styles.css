@@ -1338,3 +1338,179 @@ input.invalid {
         top: 18px;
     }
 }
+
+/* ── Battery charging indicator ──────────────────────────── */
+
+.battery-charging {
+    color: #16a35f;
+    font-weight: 700;
+}
+
+.charging-note {
+    color: #16a35f;
+    font-size: 13px;
+    font-weight: 600;
+    margin: -4px 0 0;
+    text-align: center;
+}
+
+/* ── Incident FAB ─────────────────────────────────────────── */
+
+.incident-fab {
+    background: var(--cyan);
+    border: none;
+    border-radius: 50%;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    box-shadow: 0 6px 20px rgb(0 166 214 / 40%);
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 22px;
+    height: 52px;
+    left: 16px;
+    line-height: 1;
+    padding: 0;
+    position: absolute;
+    transition: background 0.15s, transform 0.15s;
+    width: 52px;
+    z-index: 500;
+}
+
+.incident-fab:hover {
+    background: var(--cyan-dark);
+    transform: scale(1.06);
+}
+
+/* ── Incident window (overlay) ────────────────────────────── */
+
+.incident-window {
+    inset: 0;
+    position: absolute;
+    z-index: 1050;
+}
+
+.incident-window-backdrop {
+    background: rgb(7 26 47 / 42%);
+    inset: 0;
+    position: absolute;
+}
+
+.incident-window-panel {
+    background: #ffffff;
+    border-radius: 22px 22px 0 0;
+    bottom: 0;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    height: min(86vh, 680px);
+    left: 0;
+    position: absolute;
+    right: 0;
+    width: 100%;
+}
+
+.incident-window-head {
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-shrink: 0;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 16px 20px 14px;
+}
+
+.incident-window-head h2 {
+    font-size: 18px;
+    margin: 0;
+}
+
+.incident-window-body {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 20px;
+}
+
+@media (min-width: 769px) {
+    .incident-window-panel {
+        border-radius: 16px;
+        bottom: auto;
+        height: auto;
+        left: 50%;
+        max-height: min(80vh, 680px);
+        max-width: 480px;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: calc(100% - 32px);
+    }
+}
+
+/* ── Accordion (details/summary) ──────────────────────────── */
+
+.accordion {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.accordion + .accordion {
+    margin-top: 8px;
+}
+
+.accordion-toggle {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    font-size: 15px;
+    font-weight: 600;
+    gap: 8px;
+    justify-content: space-between;
+    list-style: none;
+    padding: 14px 16px;
+    user-select: none;
+}
+
+.accordion-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.accordion-arrow {
+    color: var(--muted);
+    font-size: 18px;
+    transition: transform 0.2s;
+}
+
+details[open] .accordion-arrow {
+    transform: rotate(90deg);
+}
+
+.accordion-body {
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+}
+
+.accordion-section-label {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    margin: 4px 0 0;
+    text-transform: uppercase;
+}
+
+/* ── Incident actions column layout (reservation step) ────── */
+
+.incident-actions-col {
+    flex-direction: column;
+}
+
+.incident-actions-col .incident-choice {
+    text-align: left;
+}
+
+/* Allow <a> tags styled as incident-choice (e.g. tel: call button) */
+a.incident-choice {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    text-decoration: none;
+}

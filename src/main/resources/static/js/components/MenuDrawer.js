@@ -1,10 +1,13 @@
 import { formatDateTime } from "../utils/dateTime.js";
-import { renderIncidentChat } from "./IncidentChat.js";
+import { incidentCard } from "./IncidentChat.js";
 
-export function renderMenuDrawer(container, { user, reservations, incidencias = [], activeReservation }, onStart, onCancel, onCreateIncident, onLogout, onClose) {
-    const completed = reservations.filter((reservation) => isCompleted(reservationStatusForUser(reservation)));
-    const cancelled = reservations.filter((reservation) => isCancelled(reservationStatusForUser(reservation)));
-    const expired = reservations.filter((reservation) => isExpired(reservationStatusForUser(reservation)));
+export function renderMenuDrawer(container, { user, reservations, incidencias = [] }, onLogout, onClose) {
+    const recent = [...reservations]
+        .sort((a, b) => new Date(b.horaSalida) - new Date(a.horaSalida))
+        .slice(0, 10);
+    const completed = recent.filter((reservation) => isCompleted(reservationStatusForUser(reservation)));
+    const cancelled = recent.filter((reservation) => isCancelled(reservationStatusForUser(reservation)));
+    const expired = recent.filter((reservation) => isExpired(reservationStatusForUser(reservation)));
 
     container.classList.remove("hidden");
     container.innerHTML = `
@@ -28,18 +31,30 @@ export function renderMenuDrawer(container, { user, reservations, incidencias = 
             </section>
 
             <section class="drawer-section">
-                <h3>Reservas</h3>
-                <h4>Completadas</h4>
-                ${completed.length ? completed.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas completadas.</p>"}
-                <h4>Canceladas</h4>
-                ${cancelled.length ? cancelled.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas canceladas.</p>"}
-                <h4>Caducadas</h4>
-                ${expired.length ? expired.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas caducadas.</p>"}
-            </section>
+                <details class="accordion">
+                    <summary class="accordion-toggle">
+                        <span>Reservas</span>
+                        <span class="accordion-arrow">›</span>
+                    </summary>
+                    <div class="accordion-body">
+                        <p class="accordion-section-label">Completadas</p>
+                        ${completed.length ? completed.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas completadas.</p>"}
+                        <p class="accordion-section-label">Canceladas</p>
+                        ${cancelled.length ? cancelled.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas canceladas.</p>"}
+                        <p class="accordion-section-label">Caducadas</p>
+                        ${expired.length ? expired.map((reservation) => reservationCard(reservation, user)).join("") : "<p class='empty-copy'>Sin reservas caducadas.</p>"}
+                    </div>
+                </details>
 
-            <section class="drawer-section">
-                <h3>Incidencias</h3>
-                <div id="incidentChatMount"></div>
+                <details class="accordion">
+                    <summary class="accordion-toggle">
+                        <span>Incidencias</span>
+                        <span class="accordion-arrow">›</span>
+                    </summary>
+                    <div class="accordion-body">
+                        ${incidencias.length ? incidencias.map(incidentCard).join("") : "<p class='empty-copy'>Todavia no has creado incidencias.</p>"}
+                    </div>
+                </details>
             </section>
 
             <button class="button secondary logout-action" type="button">Cerrar sesion</button>
@@ -49,11 +64,6 @@ export function renderMenuDrawer(container, { user, reservations, incidencias = 
     container.querySelector(".drawer-backdrop").addEventListener("click", onClose);
     container.querySelector(".drawer-close").addEventListener("click", onClose);
     container.querySelector(".logout-action").addEventListener("click", onLogout);
-    renderIncidentChat(
-            container.querySelector("#incidentChatMount"),
-            { user, incidencias, activeReservation },
-            onCreateIncident
-    );
 }
 
 export function closeMenuDrawer(container) {

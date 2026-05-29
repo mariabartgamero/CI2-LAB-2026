@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CarRepository extends JpaRepository<Car, Long> {
     List<Car> findByEstado(CarStatus estado);
+    List<Car> findByCargandoTrue();
 }
