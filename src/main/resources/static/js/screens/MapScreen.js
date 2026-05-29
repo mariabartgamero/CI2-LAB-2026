@@ -106,7 +106,6 @@ async function refresh(sessionId = screen.sessionId, options = {}) {
     screen.activeReservation = activeReservation;
     screen.reservations = reservations;
     screen.user = updatedUser;
-    localStorage.setItem("activeUser", JSON.stringify(updatedUser));
 
     renderUserPill();
     renderOfficesIfChanged();

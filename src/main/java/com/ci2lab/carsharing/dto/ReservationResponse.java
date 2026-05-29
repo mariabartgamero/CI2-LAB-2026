@@ -42,6 +42,7 @@ public record ReservationResponse(
     }
 
     public static ReservationResponse from(Reservation reservation, ParticipantStatus participantStatus) {
+        int occupiedSeats = occupiedSeats(reservation);
         return new ReservationResponse(
                 reservation.getId(),
                 reservation.getCoche().getId(),
@@ -65,8 +66,8 @@ public record ReservationResponse(
                 reservation.getDestinoLongitud(),
                 visibleStatus(reservation),
                 reservation.getPuntosPrevistos(),
-                reservation.getPlazasOcupadas(),
-                reservation.getCoche().getPlazasTotales() - reservation.getPlazasOcupadas(),
+                occupiedSeats,
+                Math.max(0, reservation.getCoche().getPlazasTotales() - occupiedSeats),
                 reservation.isPuntosAsignados(),
                 participantStatus,
                 reservation.isTrayectoIniciado(),
@@ -93,5 +94,13 @@ public record ReservationResponse(
             return ReservationStatus.EXPIRED;
         }
         return reservation.getEstado();
+    }
+
+    private static int occupiedSeats(Reservation reservation) {
+        int uniqueUsers = (int) reservation.getUsuariosApuntados().stream()
+                .map(user -> user.getId())
+                .distinct()
+                .count();
+        return Math.max(1, uniqueUsers);
     }
 }

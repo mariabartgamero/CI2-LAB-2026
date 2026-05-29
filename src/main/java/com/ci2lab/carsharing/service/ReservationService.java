@@ -168,7 +168,7 @@ public class ReservationService {
         if (reservation.getUsuariosApuntados().stream().anyMatch(existing -> existing.getId().equals(user.getId()))) {
             throw new AppException("Ya estas apuntado a esta reserva");
         }
-        if (reservation.getPlazasOcupadas() >= reservation.getCoche().getPlazasTotales()) {
+        if (occupiedSeats(reservation) >= reservation.getCoche().getPlazasTotales()) {
             throw new AppException("El coche ya esta completo");
         }
         validateOneReservationPerDay(user.getId(), reservation.getTipoTrayecto(), reservation.getHoraSalida());
@@ -179,7 +179,7 @@ public class ReservationService {
 
         reservation.getUsuariosApuntados().add(user);
         addParticipantHistory(reservation, user);
-        reservation.setPlazasOcupadas(reservation.getUsuariosApuntados().size());
+        reservation.setPlazasOcupadas(occupiedSeats(reservation));
         updateCarStatusByOccupancy(reservation);
         return ReservationResponse.from(reservation);
     }
@@ -457,6 +457,14 @@ public class ReservationService {
         return reservation.getPuntosPrevistos();
     }
 
+    private int occupiedSeats(Reservation reservation) {
+        int uniqueUsers = (int) reservation.getUsuariosApuntados().stream()
+                .map(User::getId)
+                .distinct()
+                .count();
+        return Math.max(1, uniqueUsers);
+    }
+
     private boolean isCarAtCompanyOffice(Car car, User user) {
         return officeRepository.findByEmpresaId(user.getEmpresa().getId()).stream()
                 .anyMatch(office -> isCarAtOffice(car, office));
@@ -483,7 +491,8 @@ public class ReservationService {
     }
 
     private void updateCarStatusByOccupancy(Reservation reservation) {
-        int occupiedSeats = reservation.getPlazasOcupadas();
+        int occupiedSeats = occupiedSeats(reservation);
+        reservation.setPlazasOcupadas(occupiedSeats);
         if (occupiedSeats >= reservation.getCoche().getPlazasTotales()) {
             reservation.getCoche().setEstado(CarStatus.COMPLETO);
         } else if (occupiedSeats >= 2) {

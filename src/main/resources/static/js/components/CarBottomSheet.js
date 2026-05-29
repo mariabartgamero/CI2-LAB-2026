@@ -6,6 +6,7 @@ const CAR_BRAND = "MERCEDES EQA";
 const CAR_MODEL = "Mercedes-Benz EQA Electrico";
 const CAR_IMAGE_URL = `${API_BASE_URL}/imagenes/coche.png`;
 const OFFICE_RETURN_RADIUS_KM = 0.1;
+const MAX_OCCUPANTS = 5;
 
 export function renderCarBottomSheet(container, car, activeReservation, offices, currentUser, onAction, onClose) {
     if (!car) {
@@ -22,9 +23,12 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
     const reservationStatus = hasReservation ? car.reserva.estado : null;
     const isBookableReservation = reservationStatus === "PENDIENTE" || reservationStatus === "ACTIVE";
     const occupants = hasReservation ? car.reserva.usuariosApuntados ?? [] : [];
+    const passengerNames = hasReservation ? occupants.filter((occupant) => !sameId(occupant.id, car.reserva.usuarioCreadorId)) : [];
+    const occupiedSeats = hasReservation ? Number(car.reserva.plazasOcupadas ?? occupants.length) : 0;
+    const availableSeats = Math.max(0, MAX_OCCUPANTS - occupiedSeats);
     const isSelectedCarMyActiveTrip = activeReservation && sameId(activeReservation.cocheId, car.id);
     const isAlreadyOccupant = occupants.some((occupant) => sameId(occupant.id, currentUser.id)) || isSelectedCarMyActiveTrip;
-    const canJoin = hasReservation && isBookableReservation && car.plazasDisponibles > 0 && !isAlreadyOccupant && !activeReservation;
+    const canJoin = hasReservation && isBookableReservation && availableSeats > 0 && !isAlreadyOccupant && !activeReservation;
     const canCancel = isAlreadyOccupant && isBookableReservation;
     const hasOtherActiveReservation = activeReservation && !isSelectedCarMyActiveTrip;
     const defaultStart = defaultStartTimeValue();
@@ -45,13 +49,13 @@ export function renderCarBottomSheet(container, car, activeReservation, offices,
         <div class="car-stats">
             <span>${car.bateria}%</span>
             <span>${metrics.autonomyKm} km</span>
-            <span>${hasReservation ? `${car.plazasDisponibles} plazas libres` : "Electrico corporativo"}</span>
+            <span>${hasReservation ? `${availableSeats} plazas libres` : "Electrico corporativo"}</span>
         </div>
         ${hasReservation ? `
             <div class="occupants">
                 <span>Ocupantes</span>
-                <strong>${occupants.length}/5</strong>
-                <p>${occupants.map(occupantName).join(", ")}</p>
+                <strong>${occupiedSeats}/${MAX_OCCUPANTS}</strong>
+                <p>${passengerNames.length ? passengerNames.map(occupantName).join(", ") : "Sin acompanantes"}</p>
             </div>
         ` : ""}
             <div class="trip-card">

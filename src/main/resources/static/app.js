@@ -3,7 +3,7 @@ import { apiRequest } from "./js/services/api.js";
 import { initMapScreen, resetMapScreen } from "./js/screens/MapScreen.js";
 
 const state = {
-    user: JSON.parse(localStorage.getItem("activeUser") || "null"),
+    user: null,
     companyCodes: new Set(["TEL2026", "REP2026", "END2026", "ACC2026"]),
     companyCodeLength: 7,
     companiesLoaded: false
@@ -39,6 +39,12 @@ document.querySelectorAll(".password-toggle").forEach((button) => {
     button.addEventListener("click", () => togglePassword(button));
 });
 
+forceLoginView();
+window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+        forceLoginView();
+    }
+});
 loadCompaniesForRegister();
 
 function showAuthTab(tab) {
@@ -218,7 +224,7 @@ function cleanText(value) {
 
 function startSession(user) {
     state.user = user;
-    localStorage.setItem("activeUser", JSON.stringify(user));
+    localStorage.removeItem("activeUser");
     resetMapScreen();
     authView.classList.add("hidden");
     appView.classList.remove("hidden");
@@ -226,18 +232,30 @@ function startSession(user) {
 }
 
 function logout() {
+    forceLoginView();
+}
+
+function forceLoginView() {
     localStorage.removeItem("activeUser");
+    sessionStorage.removeItem("activeUser");
     state.user = null;
     resetMapScreen();
+    showAuthTab("login");
+    clearLoginForm();
     appView.classList.add("hidden");
     authView.classList.remove("hidden");
+}
+
+function clearLoginForm() {
+    loginForm.reset();
+    loginForm.querySelectorAll("input").forEach((input) => {
+        input.defaultValue = "";
+        input.value = "";
+    });
+    showLoginEmailError(false);
 }
 
 function showAuthError(message) {
     authMessage.textContent = message;
     authMessage.className = "message error";
-}
-
-if (state.user) {
-    startSession(state.user);
 }

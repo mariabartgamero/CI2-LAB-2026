@@ -3,9 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-store">
     <title>Corporate Ride Madrid</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=mobile-touch-20260529">
 </head>
 <body>
     <section class="auth-view" id="authView">
@@ -39,14 +40,14 @@
                 <button class="tab" id="registerTab" type="button">Crear cuenta</button>
             </div>
 
-            <form id="loginForm" class="auth-form">
+            <form id="loginForm" class="auth-form" autocomplete="off">
                 <label>Correo corporativo
-                    <input id="loginEmail" name="email" type="text" inputmode="email" value="ana@telefonica.test" autocomplete="email" required>
+                    <input id="loginEmail" name="email" type="text" inputmode="email" autocomplete="off" required>
                     <span class="field-error hidden" id="loginEmailError">CORREO NO VALIDO</span>
                 </label>
                 <label>Contrasena
                     <span class="password-field">
-                        <input name="password" type="password" value="1234" autocomplete="current-password" required>
+                        <input name="password" type="password" autocomplete="off" required>
                         <button class="password-toggle" type="button" aria-label="Mostrar contrasena" title="Mostrar contrasena">👁</button>
                     </span>
                 </label>
@@ -109,6 +110,6 @@
     </section>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=login-reset-20260529"></script>
 </body>
 </html>
