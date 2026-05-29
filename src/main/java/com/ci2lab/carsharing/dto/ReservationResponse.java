@@ -4,6 +4,7 @@ import com.ci2lab.carsharing.model.Reservation;
 import com.ci2lab.carsharing.model.ParticipantStatus;
 import com.ci2lab.carsharing.model.ReservationStatus;
 import com.ci2lab.carsharing.model.ReservationTripType;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,6 +34,7 @@ public record ReservationResponse(
         ParticipantStatus estadoUsuario,
         boolean trayectoIniciado,
         Integer satisfactionRating,
+        Instant horaInicioTrayecto,
         LocalDateTime fechaCreacion
 ) {
     public static ReservationResponse from(Reservation reservation) {
@@ -69,6 +71,7 @@ public record ReservationResponse(
                 participantStatus,
                 reservation.isTrayectoIniciado(),
                 reservation.getSatisfactionRating(),
+                reservation.getHoraInicioTrayecto(),
                 reservation.getFechaCreacion()
         );
     }

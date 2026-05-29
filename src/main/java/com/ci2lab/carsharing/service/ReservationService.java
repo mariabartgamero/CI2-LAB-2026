@@ -17,6 +17,7 @@ import com.ci2lab.carsharing.repository.OfficeRepository;
 import com.ci2lab.carsharing.repository.ReservationParticipantRepository;
 import com.ci2lab.carsharing.repository.ReservationRepository;
 import com.ci2lab.carsharing.repository.UserRepository;
+import java.time.Instant;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +32,7 @@ public class ReservationService {
     private static final int MAX_ADVANCE_HOURS = 12;
     private static final int EXPIRATION_GRACE_MINUTES = 15;
     private static final double RETURN_FROM_OFFICE_RADIUS_KM = 0.1;
+    private static final Duration TIMED_RESERVATION_SYNC_INTERVAL = Duration.ofSeconds(5);
     private static final List<ReservationStatus> LIVE_STATUSES = List.of(
             ReservationStatus.ACTIVE
     );
@@ -43,6 +45,7 @@ public class ReservationService {
     private final UserRepository userRepository;
     private final OfficeRepository officeRepository;
     private final ReservationParticipantRepository reservationParticipantRepository;
+    private Instant lastTimedReservationSync = Instant.EPOCH;
 
     public ReservationService(
             ReservationRepository reservationRepository,
@@ -198,9 +201,8 @@ public class ReservationService {
                 reservation.getHoraSalida(),
                 reservation.getHoraEstimadaLlegada()
         ).toMinutes());
-        LocalDateTime startedAt = LocalDateTime.now();
-        reservation.setHoraSalida(startedAt);
-        reservation.setHoraEstimadaLlegada(startedAt.plusMinutes(durationMinutes));
+        reservation.setHoraInicioTrayecto(Instant.now());
+        reservation.setHoraEstimadaLlegada(LocalDateTime.now().plusMinutes(durationMinutes));
         reservation.setTrayectoIniciado(true);
         reservation.getCoche().setEstado(CarStatus.EN_USO);
         return ReservationResponse.from(reservation);
@@ -288,7 +290,7 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse findActiveByUser(Long userId) {
-        completeExpiredReservations();
+        completeExpiredReservationsIfDue();
         return reservationRepository.findFirstByUsuariosApuntadosIdAndEstadoIn(userId, LIVE_STATUSES)
                 .map(ReservationResponse::from)
                 .orElse(null);
@@ -296,10 +298,16 @@ public class ReservationService {
 
     @Transactional
     public List<ReservationResponse> findByUser(Long userId) {
-        completeExpiredReservations();
+        completeExpiredReservationsIfDue();
         return reservationParticipantRepository.findByUserIdOrderByReservationHoraSalidaDesc(userId).stream()
                 .map(participant -> ReservationResponse.from(participant.getReservation(), participant.getStatus()))
                 .toList();
+    }
+
+    public void completeExpiredReservationsIfDue() {
+        if (shouldRunTimedReservationSync()) {
+            completeExpiredReservations();
+        }
     }
 
     @Transactional
@@ -319,6 +327,15 @@ public class ReservationService {
     @Transactional
     public void expireOldReservations() {
         completeExpiredReservations();
+    }
+
+    private synchronized boolean shouldRunTimedReservationSync() {
+        Instant now = Instant.now();
+        if (lastTimedReservationSync.plus(TIMED_RESERVATION_SYNC_INTERVAL).isAfter(now)) {
+            return false;
+        }
+        lastTimedReservationSync = now;
+        return true;
     }
 
     private User findUser(Long id) {
@@ -376,6 +393,9 @@ public class ReservationService {
 
     private void startReservationBySchedule(Reservation reservation) {
         reservation.setTrayectoIniciado(true);
+        if (reservation.getHoraInicioTrayecto() == null) {
+            reservation.setHoraInicioTrayecto(Instant.now());
+        }
         reservation.getCoche().setEstado(CarStatus.EN_USO);
     }
 

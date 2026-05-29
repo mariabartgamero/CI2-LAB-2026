@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.CascadeType;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,6 +95,8 @@ public class Reservation {
 
     @Column(name = "trayecto_iniciado")
     private Boolean trayectoIniciado = false;
+
+    private Instant horaInicioTrayecto;
 
     @Column(nullable = false)
     private LocalDateTime fechaCreacion = LocalDateTime.now();
@@ -280,6 +283,14 @@ public class Reservation {
 
     public void setTrayectoIniciado(boolean trayectoIniciado) {
         this.trayectoIniciado = trayectoIniciado;
+    }
+
+    public Instant getHoraInicioTrayecto() {
+        return horaInicioTrayecto;
+    }
+
+    public void setHoraInicioTrayecto(Instant horaInicioTrayecto) {
+        this.horaInicioTrayecto = horaInicioTrayecto;
     }
 
     public LocalDateTime getFechaCreacion() {

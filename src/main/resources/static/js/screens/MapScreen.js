@@ -440,8 +440,7 @@ function activeRouteKey(reservation, points) {
     if (points.some((point) => !Number.isFinite(point))) return "";
     return [
         reservation.id,
-        reservation.estado,
-        reservation.trayectoIniciado === true,
+        reservation.horaInicioTrayecto ?? "",
         ...points
     ].join(":");
 }

@@ -20,6 +20,7 @@ export function renderActiveReservationCard(container, reservation, options = {}
     const currentPassengerReady = Boolean(currentOccupant?.ready);
     const canStart = isPending && isDriver && canStartReservation(reservation);
     const points = effectivePoints(reservation);
+    const elapsedStart = reservation.horaInicioTrayecto;
 
     container.classList.remove("hidden");
     container.innerHTML = `
@@ -30,7 +31,7 @@ export function renderActiveReservationCard(container, reservation, options = {}
             <small>${reservation.plazasOcupadas}/5 ocupantes · ${points} puntos · ${statusLabel(status)}</small>
             ${points === 0 ? "<small>Necesitas al menos 2 ocupantes para ganar puntos.</small>" : ""}
             ${passengers.length ? `<small>${passengers.map(passengerReadyLabel).join(" · ")}</small>` : ""}
-            ${isInProgress ? `<strong class="active-trip-timer" data-active-elapsed="${reservation.horaSalida}">${elapsedTimeLabel(reservation.horaSalida)}</strong>` : ""}
+            ${isInProgress ? `<strong class="active-trip-timer" ${elapsedStart ? `data-active-elapsed="${elapsedStart}"` : ""}>${elapsedTimeLabel(elapsedStart)}</strong>` : ""}
         </div>
         ${isPending ? `
             <div class="active-reservation-actions">
@@ -158,7 +159,9 @@ function updateElapsedTimer(container) {
 }
 
 function elapsedTimeLabel(startValue) {
+    if (!startValue) return "Duracion del viaje: 00:00";
     const elapsedMs = Math.max(0, Date.now() - new Date(startValue).getTime());
+    if (Number.isNaN(elapsedMs)) return "Duracion del viaje: 00:00";
     const totalSeconds = Math.floor(elapsedMs / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");

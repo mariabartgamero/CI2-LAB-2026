@@ -18,7 +18,7 @@ public class UserService {
 
     @Transactional
     public UserResponse findById(Long id) {
-        reservationService.completeExpiredReservations();
+        reservationService.completeExpiredReservationsIfDue();
         return userRepository.findById(id)
                 .map(UserResponse::from)
                 .orElseThrow(() -> new AppException("Usuario no encontrado"));

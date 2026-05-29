@@ -41,19 +41,19 @@ public class CarService {
 
     @Transactional
     public List<CarMapResponse> findAll() {
-        reservationService.completeExpiredReservations();
+        reservationService.completeExpiredReservationsIfDue();
         return carRepository.findAll().stream().map(this::toMapResponse).toList();
     }
 
     @Transactional
     public List<CarMapResponse> findAvailable() {
-        reservationService.completeExpiredReservations();
+        reservationService.completeExpiredReservationsIfDue();
         return carRepository.findByEstado(CarStatus.LIBRE).stream().map(this::toMapResponse).toList();
     }
 
     @Transactional
     public List<CarMapResponse> findVisibleForUser(Long userId) {
-        reservationService.completeExpiredReservations();
+        reservationService.completeExpiredReservationsIfDue();
         User user = userRepository.findById(userId).orElseThrow(() -> new AppException("Usuario no encontrado"));
         return carRepository.findAll().stream()
                 .map(this::toMapResponse)
