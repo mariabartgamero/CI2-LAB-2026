@@ -832,36 +832,11 @@ Para los trayectos de vuelta se utiliza geocodificación con Nominatim. Esto per
 
 ---
 
-## 16. Limitaciones y posibles mejoras
-
-El proyecto funciona como MVP académico, pero podrían incorporarse mejoras para una versión de producción:
-
-- Cifrado de contraseñas con `BCrypt`.
-- Autenticación mediante JWT o sesiones seguras.
-- Roles de usuario y panel de administración.
-- Gestión avanzada de disponibilidad de vehículos.
-- Integración con servicios reales de rutas para calcular tiempos más precisos.
-- Sustitución del cálculo de distancia en línea recta por distancia real de conducción.
-- Despliegue en una plataforma pública con variables de entorno seguras.
-- Tests unitarios y de integración.
-- Mejor control de concurrencia cuando varios usuarios intentan reservar o unirse al mismo coche a la vez.
-- Gestión de mantenimiento, carga de batería y disponibilidad real de flota.
-
----
-
-## 17. Conclusión
-
-Corporate Ride es una aplicación web fullstack que integra frontend, backend y base de datos para resolver un caso realista de movilidad corporativa compartida. El sistema permite registrar usuarios por empresa, visualizar coches en un mapa, crear reservas, compartir trayectos, gestionar ocupantes, controlar estados de vehículos y asignar puntos responsables al completar viajes compartidos.
-
-El proyecto destaca por combinar una interfaz visual basada en mapa con una API REST estructurada y una lógica de negocio que controla restricciones importantes como empresa del usuario, plazas disponibles, límites de reserva, caducidad automática y asignación de puntos. De esta forma, Corporate Ride no se limita a mostrar coches, sino que gestiona el ciclo completo de una reserva corporativa desde su creación hasta su finalización.
-
----
-
-## 18. Novedades añadidas
+## 16. Incidencias
 
 Además de las funcionalidades descritas anteriormente, el proyecto incorpora nuevas mejoras orientadas a soporte, seguimiento de incidencias, valoración de viajes y despliegue.
 
-### 18.1 Sistema de incidencias
+### 16.1 Sistema de incidencias
 
 Se ha añadido un módulo completo de incidencias para que los usuarios puedan comunicar problemas relacionados con reservas, coches, accidentes, emergencias, objetos perdidos u otras consultas.
 
@@ -887,7 +862,7 @@ Las categorías disponibles son:
 
 Cada incidencia queda asociada al usuario que la crea y, si procede, también a una reserva y a un coche. El backend valida que el tipo de incidencia pertenezca a la categoría seleccionada.
 
-### 18.2 Estados y prioridades de incidencias
+### 16.2 Estados y prioridades de incidencias
 
 Las incidencias tienen un ciclo de estado propio:
 
@@ -909,7 +884,7 @@ También se calcula una prioridad automática según el tipo de problema:
 
 La entidad `Incidencia` guarda descripción, categoría, tipo, estado, prioridad, fecha de creación y fecha de actualización.
 
-### 18.3 Historial de incidencias en el menú lateral
+### 16.3 Historial de incidencias en el menú lateral
 
 El menú lateral se ha ampliado con un acordeón específico de incidencias. Desde este apartado el usuario puede consultar las incidencias que ha creado, incluyendo:
 
@@ -923,7 +898,7 @@ El menú lateral se ha ampliado con un acordeón específico de incidencias. Des
 
 Para ello, `MenuDrawer.js` ahora recibe también la lista de incidencias del usuario y reutiliza las tarjetas generadas desde `IncidentChat.js`.
 
-### 18.4 API REST de incidencias
+### 16.4 API REST de incidencias
 
 Se ha añadido `IncidenciaController.java` con nuevos endpoints REST:
 
@@ -938,7 +913,7 @@ Se ha añadido `IncidenciaController.java` con nuevos endpoints REST:
 
 El frontend encapsula estas llamadas en `incidenciaService.js`.
 
-### 18.5 Nuevas clases del backend para incidencias
+### 16.5 Nuevas clases del backend para incidencias
 
 Para soportar esta funcionalidad se han añadido nuevos elementos al backend:
 
@@ -956,7 +931,7 @@ Para soportar esta funcionalidad se han añadido nuevos elementos al backend:
 | `IncidenciaResponse.java` | DTO de respuesta con la información completa de una incidencia. |
 | `UpdateIncidenciaEstadoRequest.java` | DTO para cambiar el estado de una incidencia. |
 
-### 18.6 Valoración de reservas finalizadas
+### 16.6 Valoración de reservas finalizadas
 
 Se ha incorporado un sistema de valoración de trayectos completados. Cuando una reserva se finaliza correctamente, el frontend puede mostrar un modal de valoración con una escala de 1 a 5 estrellas.
 
@@ -972,7 +947,7 @@ El nuevo endpoint asociado es:
 
 El frontend consume este endpoint desde `reservationService.js` mediante la función `rateReservation()`.
 
-### 18.7 Cambios de interfaz
+### 16.7 Cambios de interfaz
 
 La interfaz web incorpora nuevas piezas visuales y de interacción:
 
@@ -985,7 +960,7 @@ La interfaz web incorpora nuevas piezas visuales y de interacción:
 
 Estas mejoras se apoyan principalmente en `index.html`, `styles.css`, `MapScreen.js`, `MenuDrawer.js`, `IncidentChat.js`, `incidenciaService.js` y `reservationService.js`.
 
-### 18.8 Cambios de base de datos y despliegue
+### 16.8 Cambios de base de datos y despliegue
 
 También se han añadido ajustes relacionados con persistencia y despliegue:
 
@@ -998,7 +973,19 @@ También se han añadido ajustes relacionados con persistencia y despliegue:
 - `DatabaseMigrationConfig.java` aplica ajustes de compatibilidad sobre la tabla de reservas al arrancar.
 - `Dockerfile` multi-stage para compilar con Maven y ejecutar la aplicación con Java 21.
 
-### 18.9 Carga automática de coches en oficina
+### 16.9 Flujo actualizado de uso
+
+Con estas novedades, el flujo completo de la aplicación queda ampliado:
+
+1. El usuario crea, comparte, inicia y finaliza una reserva como antes.
+2. Al finalizar el trayecto, puede valorar la experiencia con una puntuación de 1 a 5.
+3. Si durante el uso aparece un problema, puede abrir el botón de incidencias.
+4. El chat de incidencias le permite asociar el problema a una reserva reciente o comunicarlo sin reserva.
+5. La incidencia queda guardada con estado, prioridad y trazabilidad temporal.
+6. El usuario puede revisar posteriormente sus reservas e incidencias desde el menú lateral.
+
+## 17. Batería
+### 17.1 Carga automática de coches en oficina
 
 Se ha añadido una lógica de batería y carga automática asociada al ciclo de los trayectos.
 
@@ -1017,14 +1004,30 @@ La carga funciona así:
 
 Esta información viaja al frontend mediante el campo `cargando` de `CarMapResponse`, por lo que el mapa y la ficha inferior del coche pueden mostrar si el vehículo está cargando.
 
-### 18.10 Flujo actualizado de uso
+### 17.2 Flujo actualizado de uso
 
 Con estas novedades, el flujo completo de la aplicación queda ampliado:
 
-1. El usuario crea, comparte, inicia y finaliza una reserva como antes.
-2. Si el trayecto de ida termina en una oficina, el coche empieza a cargar automáticamente.
-3. Al finalizar el trayecto, puede valorar la experiencia con una puntuación de 1 a 5.
-4. Si durante el uso aparece un problema, puede abrir el botón de incidencias.
-5. El chat de incidencias le permite asociar el problema a una reserva reciente o comunicarlo sin reserva.
-6. La incidencia queda guardada con estado, prioridad y trazabilidad temporal.
-7. El usuario puede revisar posteriormente sus reservas e incidencias desde el menú lateral.
+## 18. Limitaciones y posibles mejoras
+
+El proyecto funciona como MVP académico, pero podrían incorporarse mejoras para una versión de producción:
+
+- Cifrado de contraseñas con `BCrypt`.
+- Autenticación mediante JWT o sesiones seguras.
+- Roles de usuario y panel de administración.
+- Gestión avanzada de disponibilidad de vehículos.
+- Integración con servicios reales de rutas para calcular tiempos más precisos.
+- Sustitución del cálculo de distancia en línea recta por distancia real de conducción.
+- Despliegue en una plataforma pública con variables de entorno seguras.
+- Tests unitarios y de integración.
+- Mejor control de concurrencia cuando varios usuarios intentan reservar o unirse al mismo coche a la vez.
+- Gestión de mantenimiento, carga de batería y disponibilidad real de flota.
+
+---
+
+## 19. Conclusión
+
+Corporate Ride es una aplicación web fullstack que integra frontend, backend y base de datos para resolver un caso realista de movilidad corporativa compartida. El sistema permite registrar usuarios por empresa, visualizar coches en un mapa, crear reservas, compartir trayectos, gestionar ocupantes, controlar estados de vehículos y asignar puntos responsables al completar viajes compartidos.
+
+El proyecto destaca por combinar una interfaz visual basada en mapa con una API REST estructurada y una lógica de negocio que controla restricciones importantes como empresa del usuario, plazas disponibles, límites de reserva, caducidad automática y asignación de puntos. De esta forma, Corporate Ride no se limita a mostrar coches, sino que gestiona el ciclo completo de una reserva corporativa desde su creación hasta su finalización.
+
