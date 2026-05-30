@@ -1004,9 +1004,6 @@ La carga funciona así:
 
 Esta información viaja al frontend mediante el campo `cargando` de `CarMapResponse`, por lo que el mapa y la ficha inferior del coche pueden mostrar si el vehículo está cargando.
 
-### 17.2 Flujo actualizado de uso
-
-Con estas novedades, el flujo completo de la aplicación queda ampliado:
 
 ## 18. Limitaciones y posibles mejoras
 
