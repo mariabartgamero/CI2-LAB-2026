@@ -25,7 +25,9 @@ Con Corporate Ride, el usuario puede:
 - Marcarse como listo antes del viaje.
 - Iniciar y finalizar trayectos.
 - Acumular puntos responsables cuando el trayecto se completa con al menos dos ocupantes.
-- Consultar su historial de reservas completadas, canceladas y caducadas.
+- Valorar la experiencia al finalizar una reserva completada.
+- Registrar incidencias relacionadas con reservas, coches, accidentes, objetos perdidos u otras consultas.
+- Consultar su historial de reservas completadas, canceladas, caducadas e incidencias registradas.
 
 ---
 
@@ -277,7 +279,26 @@ Cuando el conductor finaliza el viaje:
 
 ---
 
-### 4.9 Sistema de puntos responsables
+### 4.9 Gestión de batería y carga automática en oficina
+
+Corporate Ride incluye una lógica de batería y carga automática asociada al ciclo de los trayectos.
+
+Cuando una reserva finaliza, el backend mueve el coche a las coordenadas del destino y descuenta batería en función de la distancia recorrida. El cálculo usa una estimación de kilómetros por porcentaje de batería y mantiene un mínimo de seguridad para evitar que el coche quede por debajo del umbral definido.
+
+Si el trayecto finalizado es de tipo `IDA`, es decir, termina en una oficina corporativa, el coche queda marcado como `cargando`. A partir de ese momento, una tarea programada del backend incrementa la batería de los coches en carga hasta llegar al 100%.
+
+La carga funciona así:
+
+- Al crear una reserva, el coche deja de estar en carga.
+- Al iniciar un trayecto, el coche pasa a `EN_USO` y tampoco aparece como cargando.
+- Al finalizar una reserva de ida, el coche queda libre, se coloca en la oficina destino y se marca como cargando.
+- Cada 10 segundos, `CarService` suma un 1% de batería a los coches con `cargando = true`.
+- Cuando un coche alcanza el 100%, deja de aparecer como cargando.
+- El frontend muestra el estado de carga con un indicador visual junto al porcentaje de batería y el texto `Cargando en oficina · +1% cada 10 s`.
+
+Esta información viaja al frontend mediante el campo `cargando` de `CarMapResponse`, por lo que el mapa y la ficha inferior del coche pueden mostrar si el vehículo está cargando.
+
+### 4.10 Sistema de puntos responsables
 
 Corporate Ride incluye un sistema de puntos para incentivar los viajes compartidos. Los puntos se calculan en el frontend a partir de la distancia aproximada del coche al destino.
 
@@ -293,7 +314,7 @@ Esta lógica evita premiar reservas individuales y refuerza el objetivo principa
 
 ---
 
-### 4.10 Cancelación de reservas
+### 4.11 Cancelación de reservas
 
 Antes de iniciar el viaje, cualquier usuario apuntado puede cancelar su participación.
 
@@ -307,7 +328,7 @@ El sistema mantiene un historial mediante la entidad `ReservationParticipant`, p
 
 ---
 
-### 4.11 Historial y menú de usuario
+### 4.12 Historial y menú de usuario
 
 El menú lateral, implementado en `MenuDrawer.js`, permite consultar información del perfil y del historial del usuario.
 
@@ -327,7 +348,7 @@ La información se obtiene desde `/api/reservations/user/{userId}` y se construy
 
 ---
 
-### 4.12 Caducidad automática de reservas
+### 4.13 Caducidad automática de reservas
 
 El backend incluye una tarea programada que se ejecuta cada minuto para detectar reservas que no han sido iniciadas a tiempo.
 
@@ -337,7 +358,174 @@ Esto evita que un vehículo quede bloqueado indefinidamente por una reserva que 
 
 ---
 
-## 5. Arquitectura del backend
+
+## 5. Soporte, incidencias y valoración de reservas
+
+Corporate Ride incorpora un módulo de soporte orientado al registro y seguimiento de incidencias, así como un sistema de valoración de viajes completados. Estas funcionalidades forman parte del flujo normal de uso de la aplicación y completan la experiencia del usuario después de crear, compartir, iniciar y finalizar reservas.
+
+```mermaid
+flowchart LR
+    U[Usuario] --> C[Chat de incidencias]
+    C --> R[Reserva reciente / sin reserva]
+    R --> CAT[Categoría]
+    CAT --> TIPO[Tipo de incidencia]
+    TIPO --> DESC[Descripción]
+    DESC --> API[POST /api/incidencias]
+    API --> DB[(Incidencia)]
+    DB --> HIST[Historial en menú lateral]
+```
+
+### 5.1 Sistema de incidencias
+
+El sistema de incidencias permite que los usuarios comuniquen problemas relacionados con reservas, coches, accidentes, emergencias, objetos perdidos u otras consultas.
+
+Desde la interfaz principal aparece un botón flotante de reporte de incidencias. Al pulsarlo se abre una ventana tipo chat, implementada en `IncidentChat.js`, que guía al usuario paso a paso:
+
+- Selección de una reserva reciente o creación de una incidencia sin reserva asociada.
+- Selección de categoría de incidencia.
+- Selección del tipo concreto de problema.
+- Introducción de una descripción breve.
+- Confirmación del resumen antes de enviarla.
+- Opción de contactar con un operario mediante un enlace telefónico.
+- Posibilidad de registrar otra incidencia al finalizar el flujo.
+
+Las categorías disponibles son:
+
+| Categoría | Uso |
+|---|---|
+| `RESERVA` | Problemas al iniciar, finalizar, modificar o localizar una reserva. |
+| `COCHE` | Problemas físicos o funcionales del vehículo. |
+| `ACCIDENTE_EMERGENCIA` | Accidentes, averías durante el trayecto o situaciones urgentes. |
+| `OBJETO_PERDIDO` | Objetos perdidos, encontrados o pendientes de recuperar. |
+| `OTRO` | Consultas generales o problemas no clasificados. |
+
+Cada incidencia queda asociada al usuario que la crea y, si procede, también a una reserva y a un coche. El backend valida que el tipo de incidencia pertenezca a la categoría seleccionada.
+
+### 5.2 Estados y prioridades de incidencias
+
+Las incidencias tienen un ciclo de estado propio:
+
+| Estado | Significado |
+|---|---|
+| `ABIERTA` | La incidencia acaba de registrarse. |
+| `EN_PROCESO` | La incidencia está siendo gestionada. |
+| `RESUELTA` | El problema se ha solucionado. |
+| `CERRADA` | La incidencia queda archivada o cerrada definitivamente. |
+
+También se calcula una prioridad automática según el tipo de problema:
+
+| Prioridad | Ejemplos |
+|---|---|
+| `URGENTE` | Accidente, coche robado, asistencia urgente, avería durante el trayecto o daños graves. |
+| `ALTA` | El coche no arranca, no abre, no cierra o no se puede iniciar/finalizar la reserva. |
+| `MEDIA` | Coche sucio, daños visibles, poca batería, ubicación incorrecta o reserva bloqueada. |
+| `BAJA` | Objetos perdidos, consultas generales u otros problemas no críticos. |
+
+La entidad `Incidencia` guarda descripción, categoría, tipo, estado, prioridad, fecha de creación y fecha de actualización.
+
+### 5.3 Historial de incidencias en el menú lateral
+
+El menú lateral incluye un acordeón específico de incidencias. Desde este apartado el usuario puede consultar las incidencias que ha creado, incluyendo:
+
+- Categoría.
+- Tipo de incidencia.
+- Estado.
+- Matrícula del coche, si existe.
+- Descripción.
+- Prioridad.
+- Fecha de creación.
+
+Para ello, `MenuDrawer.js` recibe también la lista de incidencias del usuario y reutiliza las tarjetas generadas desde `IncidentChat.js`.
+
+### 5.4 API REST de incidencias
+
+`IncidenciaController.java` expone los endpoints REST asociados a esta funcionalidad:
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `POST` | `/api/incidencias` | Crea una nueva incidencia. |
+| `GET` | `/api/incidencias` | Devuelve todas las incidencias. |
+| `GET` | `/api/incidencias/user/{userId}` | Devuelve las incidencias creadas por un usuario. |
+| `GET` | `/api/incidencias/{id}` | Devuelve el detalle de una incidencia. |
+| `PATCH` | `/api/incidencias/{id}/estado` | Actualiza el estado de una incidencia. |
+| `DELETE` | `/api/incidencias/{id}` | Elimina una incidencia. |
+
+El frontend encapsula estas llamadas en `incidenciaService.js`.
+
+### 5.5 Clases del backend para incidencias
+
+Para soportar esta funcionalidad, el backend incorpora los siguientes elementos:
+
+| Archivo | Responsabilidad |
+|---|---|
+| `IncidenciaController.java` | Expone los endpoints REST de incidencias. |
+| `IncidenciaService.java` | Aplica la lógica de creación, consulta, actualización de estado, borrado y prioridad. |
+| `IncidenciaRepository.java` | Accede a las incidencias almacenadas en base de datos. |
+| `Incidencia.java` | Representa la entidad persistente de una incidencia. |
+| `CategoriaIncidencia.java` | Define las categorías principales. |
+| `TipoIncidencia.java` | Define los tipos concretos y su categoría asociada. |
+| `EstadoIncidencia.java` | Define los estados posibles de una incidencia. |
+| `PrioridadIncidencia.java` | Define los niveles de prioridad. |
+| `CreateIncidenciaRequest.java` | DTO para crear incidencias. |
+| `IncidenciaResponse.java` | DTO de respuesta con la información completa de una incidencia. |
+| `UpdateIncidenciaEstadoRequest.java` | DTO para cambiar el estado de una incidencia. |
+
+### 5.6 Valoración de reservas finalizadas
+
+La aplicación incluye un sistema de valoración de trayectos completados. Cuando una reserva se finaliza correctamente, el frontend puede mostrar un modal de valoración con una escala de 1 a 5 estrellas.
+
+La valoración se guarda en la reserva mediante el campo `satisfactionRating`. Solo se pueden valorar reservas en estado completado y el backend valida que la puntuación esté entre 1 y 5.
+
+El historial del menú lateral muestra la valoración de las reservas finalizadas. Si una reserva completada todavía no ha sido valorada, aparece como pendiente de valorar.
+
+El endpoint asociado es:
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `PATCH` | `/api/reservations/{id}/rating` | Guarda la valoración de una reserva finalizada. |
+
+El frontend consume este endpoint desde `reservationService.js` mediante la función `rateReservation()`.
+
+### 5.7 Interfaz de incidencias y valoración
+
+La interfaz web incorpora piezas visuales y de interacción específicas:
+
+- Botón flotante para reportar incidencias desde la pantalla del mapa.
+- Ventana modal de incidencias con conversación guiada.
+- Tarjetas de incidencias dentro del menú lateral.
+- Acordeones en el menú para separar reservas e incidencias.
+- Modal de valoración de reservas finalizadas.
+- Estilos específicos para incidencias, tarjetas, botones de selección, ventana emergente y valoración por estrellas.
+
+Estas funcionalidades se apoyan principalmente en `index.html`, `styles.css`, `MapScreen.js`, `MenuDrawer.js`, `IncidentChat.js`, `incidenciaService.js` y `reservationService.js`.
+
+### 5.8 Base de datos y despliegue
+
+La persistencia y el despliegue contemplan los siguientes elementos:
+
+- Nueva tabla `incidencias`, gestionada por JPA a partir de la entidad `Incidencia`.
+- Campo `satisfactionRating` en reservas para almacenar la valoración del usuario.
+- Configuración de zona horaria `Europe/Madrid` para Jackson y Hibernate.
+- Configuración del puerto mediante `PORT`, útil para despliegues externos.
+- Ajustes de HikariCP para limitar conexiones en entornos con base de datos remota.
+- Migración `V2__allow_expired_reservation_status.sql` para permitir el estado `EXPIRED` en reservas.
+- `DatabaseMigrationConfig.java` aplica ajustes de compatibilidad sobre la tabla de reservas al arrancar.
+- `Dockerfile` multi-stage para compilar con Maven y ejecutar la aplicación con Java 21.
+
+### 5.9 Flujo de uso con incidencias y valoración
+
+Con este diseño, el flujo completo de la aplicación queda estructurado de la siguiente forma:
+
+1. El usuario crea, comparte, inicia y finaliza una reserva como antes.
+2. Al finalizar el trayecto, puede valorar la experiencia con una puntuación de 1 a 5.
+3. Si durante el uso aparece un problema, puede abrir el botón de incidencias.
+4. El chat de incidencias le permite asociar el problema a una reserva reciente o comunicarlo sin reserva.
+5. La incidencia queda guardada con estado, prioridad y trazabilidad temporal.
+6. El usuario puede revisar posteriormente sus reservas e incidencias desde el menú lateral.
+
+---
+
+## 6. Arquitectura del backend
 
 El backend sigue una estructura por capas típica de Spring Boot:
 
@@ -345,7 +533,7 @@ El backend sigue una estructura por capas típica de Spring Boot:
 controller  ->  service  ->  repository  ->  database
 ```
 
-### 5.1 Controllers
+### 6.1 Controllers
 
 Los controladores definen los endpoints REST que consume el frontend.
 
@@ -358,7 +546,7 @@ Los controladores definen los endpoints REST que consume el frontend.
 | `ReservationController.java` | Creación, unión, inicio, finalización, cancelación e historial de reservas. |
 | `UserController.java` | Consulta de información de usuario. |
 
-### 5.2 Services
+### 6.2 Services
 
 Los servicios contienen la lógica principal de negocio.
 
@@ -370,7 +558,7 @@ Los servicios contienen la lógica principal de negocio.
 | `ReservationService.java` | Aplica toda la lógica de reservas, ocupantes, puntos, cancelaciones y caducidad. |
 | `UserService.java` | Recupera datos actualizados de usuario. |
 
-### 5.3 Repositories
+### 6.3 Repositories
 
 Los repositorios extienden `JpaRepository` y permiten acceder a la base de datos sin escribir SQL manual para las operaciones básicas.
 
@@ -383,7 +571,7 @@ Los repositorios extienden `JpaRepository` y permiten acceder a la base de datos
 | `ReservationParticipantRepository.java` | Historial de participantes. |
 | `UserRepository.java` | Usuarios. |
 
-### 5.4 DTOs
+### 6.4 DTOs
 
 Los DTOs definen los datos que entran y salen de la API. Esta separación evita enviar directamente las entidades de base de datos al frontend y permite construir respuestas adaptadas a la interfaz.
 
@@ -395,7 +583,7 @@ Ejemplos:
 - `CreateReservationRequest`: datos necesarios para crear una reserva.
 - `AuthRequest` y `RegisterRequest`: datos de login y registro.
 
-### 5.5 Gestión de errores
+### 6.5 Gestión de errores
 
 El proyecto define una excepción propia, `AppException`, para los errores de negocio. Estos errores se capturan en `GlobalExceptionHandler`, que devuelve respuestas HTTP controladas con un mensaje en formato JSON.
 
@@ -409,7 +597,7 @@ Ejemplo de respuesta de error:
 
 ---
 
-## 6. Modelo de datos
+## 7. Modelo de datos
 
 El modelo principal se compone de empresas, usuarios, oficinas, coches, reservas y participantes.
 
@@ -425,7 +613,7 @@ erDiagram
     OFFICE ||--o{ RESERVATION : destino_ida
 ```
 
-### 6.1 Entidades principales
+### 7.1 Entidades principales
 
 #### `Company`
 
@@ -453,9 +641,9 @@ Representa el historial de participación de un usuario en una reserva. Permite 
 
 ---
 
-## 7. Estados principales
+## 8. Estados principales
 
-### 7.1 Estados de coche
+### 8.1 Estados de coche
 
 ```text
 LIBRE -> RESERVA_PENDIENTE -> RESERVA_CONFIRMADA -> COMPLETO
@@ -468,7 +656,7 @@ LIBRE -> RESERVA_PENDIENTE -> RESERVA_CONFIRMADA -> COMPLETO
 - `COMPLETO`: no quedan plazas disponibles.
 - `EN_USO`: el viaje ya ha comenzado.
 
-### 7.2 Estados de reserva
+### 8.2 Estados de reserva
 
 Internamente, la reserva usa principalmente estos estados:
 
@@ -489,7 +677,7 @@ Para el frontend, algunos estados se convierten a etiquetas más comprensibles:
 | `CANCELADA` | Reserva cancelada. |
 | `EXPIRED` | Reserva caducada. |
 
-### 7.3 Estados de participante
+### 8.3 Estados de participante
 
 | Estado | Significado |
 |---|---|
@@ -499,7 +687,7 @@ Para el frontend, algunos estados se convierten a etiquetas más comprensibles:
 
 ---
 
-## 8. Estructura del frontend
+## 9. Estructura del frontend
 
 El frontend se encuentra dentro de `src/main/resources/static`, por lo que Spring Boot lo sirve automáticamente desde `http://localhost:8080`.
 
@@ -527,7 +715,7 @@ src/main/resources/static/
         └── location.js
 ```
 
-### 8.1 `index.html`
+### 9.1 `index.html`
 
 Contiene la estructura principal de la interfaz:
 
@@ -541,13 +729,13 @@ Contiene la estructura principal de la interfaz:
 - Menú lateral.
 - Toasts de mensajes.
 
-### 8.2 `app.js`
+### 9.2 `app.js`
 
 Gestiona la autenticación, la validación inicial de formularios y el cambio entre la vista de acceso y la vista principal de la aplicación.
 
 También guarda y recupera el usuario activo desde `localStorage`.
 
-### 8.3 `MapScreen.js`
+### 9.3 `MapScreen.js`
 
 Es el módulo principal de la pantalla del mapa. Se encarga de:
 
@@ -560,7 +748,7 @@ Es el módulo principal de la pantalla del mapa. Se encarga de:
 - Actualizar la interfaz después de reservar, unirse, cancelar, iniciar o finalizar.
 - Mantener actualizada la reserva activa mediante refrescos periódicos.
 
-### 8.4 Componentes
+### 9.4 Componentes
 
 | Componente | Función |
 |---|---|
@@ -568,7 +756,7 @@ Es el módulo principal de la pantalla del mapa. Se encarga de:
 | `ActiveReservationCard.js` | Muestra la reserva activa y sus acciones principales. |
 | `MenuDrawer.js` | Muestra perfil, puntos, historial y cierre de sesión. |
 
-### 8.5 Servicios del frontend
+### 9.5 Servicios del frontend
 
 Los servicios encapsulan las llamadas al backend:
 
@@ -581,7 +769,7 @@ Los servicios encapsulan las llamadas al backend:
 | `userService.js` | `/api/users/{id}` |
 | `api.js` | Función genérica `apiRequest()` |
 
-### 8.6 Utilidades
+### 9.6 Utilidades
 
 | Archivo | Función |
 |---|---|
@@ -590,23 +778,23 @@ Los servicios encapsulan las llamadas al backend:
 
 ---
 
-## 9. API REST
+## 10. API REST
 
-### 9.1 Autenticación
+### 10.1 Autenticación
 
 | Método | Endpoint | Descripción |
 |---|---|---|
 | `POST` | `/api/auth/register` | Registra un nuevo usuario asociado a una empresa. |
 | `POST` | `/api/auth/login` | Inicia sesión con correo y contraseña. |
 
-### 9.2 Empresas y oficinas
+### 10.2 Empresas y oficinas
 
 | Método | Endpoint | Descripción |
 |---|---|---|
 | `GET` | `/api/companies` | Devuelve todas las empresas disponibles. |
 | `GET` | `/api/offices/company/{companyId}` | Devuelve las oficinas asociadas a una empresa. |
 
-### 9.3 Coches
+### 10.3 Coches
 
 | Método | Endpoint | Descripción |
 |---|---|---|
@@ -614,13 +802,13 @@ Los servicios encapsulan las llamadas al backend:
 | `GET` | `/api/cars/available` | Devuelve solo los coches libres. |
 | `GET` | `/api/cars/visible?userId={id}` | Devuelve los coches visibles para un usuario. |
 
-### 9.4 Usuarios
+### 10.4 Usuarios
 
 | Método | Endpoint | Descripción |
 |---|---|---|
 | `GET` | `/api/users/{id}` | Devuelve los datos actualizados de un usuario. |
 
-### 9.5 Reservas
+### 10.5 Reservas
 
 | Método | Endpoint | Descripción |
 |---|---|---|
@@ -635,7 +823,7 @@ Los servicios encapsulan las llamadas al backend:
 
 ---
 
-## 10. Base de datos
+## 11. Base de datos
 
 La aplicación utiliza PostgreSQL como base de datos principal. Hibernate está configurado para actualizar el esquema de forma automática mediante:
 
@@ -660,9 +848,9 @@ psql "postgresql://usuario:password@HOST:PORT/NOMBRE_BD?sslmode=require" -f src/
 
 ---
 
-## 11. Instalación y ejecución
+## 12. Instalación y ejecución
 
-### 11.1 Requisitos previos
+### 12.1 Requisitos previos
 
 Para ejecutar el proyecto es necesario tener instalado:
 
@@ -670,7 +858,7 @@ Para ejecutar el proyecto es necesario tener instalado:
 - Maven.
 - PostgreSQL o acceso a una base PostgreSQL remota.
 
-### 11.2 Configuración de base de datos
+### 12.2 Configuración de base de datos
 
 La conexión a PostgreSQL debe configurarse en `src/main/resources/application.properties` o mediante variables de entorno.
 
@@ -699,7 +887,7 @@ $env:DB_USERNAME="usuario"
 $env:DB_PASSWORD="password"
 ```
 
-### 11.3 Arranque del proyecto
+### 12.3 Arranque del proyecto
 
 Desde la raíz del proyecto:
 
@@ -717,7 +905,7 @@ Al estar el frontend dentro de `src/main/resources/static`, no hace falta arranc
 
 ---
 
-## 12. Flujo de uso recomendado
+## 13. Flujo de uso recomendado
 
 1. Abrir `http://localhost:8080`.
 2. Iniciar sesión con un usuario de prueba o crear una cuenta nueva.
@@ -737,7 +925,7 @@ Al estar el frontend dentro de `src/main/resources/static`, no hace falta arranc
 
 ---
 
-## 13. Datos de prueba
+## 14. Datos de prueba
 
 El seed incluye usuarios de ejemplo. Algunos de ellos son:
 
@@ -754,7 +942,7 @@ Estos usuarios permiten probar el comportamiento multiempresa. Por ejemplo, dos 
 
 ---
 
-## 14. Estructura del repositorio
+## 15. Estructura del repositorio
 
 ```text
 CI2-LAB-2026/
@@ -800,13 +988,13 @@ CI2-LAB-2026/
 
 ---
 
-## 15. Decisiones de diseño
+## 16. Decisiones de diseño
 
-### 15.1 Backend y frontend en el mismo proyecto
+### 16.1 Backend y frontend en el mismo proyecto
 
 El frontend se ha colocado dentro de `src/main/resources/static` para que Spring Boot lo sirva automáticamente. Esto simplifica el despliegue y evita tener que levantar dos aplicaciones separadas durante la demo.
 
-### 15.2 Separación por capas
+### 16.2 Separación por capas
 
 El backend se divide en controladores, servicios, repositorios, modelos y DTOs. Esta estructura permite separar responsabilidades:
 
@@ -816,196 +1004,23 @@ El backend se divide en controladores, servicios, repositorios, modelos y DTOs. 
 - Los DTOs definen la información intercambiada con el frontend.
 - Los modelos representan las tablas de la base de datos.
 
-### 15.3 Historial de participantes
+### 16.3 Historial de participantes
 
 En lugar de guardar únicamente la lista actual de usuarios apuntados, el proyecto incluye una entidad `ReservationParticipant`. Esta decisión permite conservar información histórica sobre usuarios que cancelan, completan el trayecto o se marcan como listos.
 
 Gracias a esta estructura, el menú lateral puede mostrar reservas completadas, canceladas y caducadas de forma más precisa.
 
-### 15.4 Sistema de puntos vinculado a ocupación
+### 16.4 Sistema de puntos vinculado a ocupación
 
 Los puntos solo se asignan si el trayecto se completa con al menos dos ocupantes. Esta regla está alineada con el objetivo de reducir trayectos individuales y fomentar que los empleados compartan coche.
 
-### 15.5 Validación de direcciones para trayectos de vuelta
+### 16.5 Validación de direcciones para trayectos de vuelta
 
 Para los trayectos de vuelta se utiliza geocodificación con Nominatim. Esto permite convertir una dirección escrita por el usuario en coordenadas reales y calcular distancia, tiempo y puntos aproximados.
 
 ---
 
-## 16. Incidencias
-
-Además de las funcionalidades descritas anteriormente, el proyecto incorpora nuevas mejoras orientadas a soporte, seguimiento de incidencias, valoración de viajes y despliegue.
-
-### 16.1 Sistema de incidencias
-
-Se ha añadido un módulo completo de incidencias para que los usuarios puedan comunicar problemas relacionados con reservas, coches, accidentes, emergencias, objetos perdidos u otras consultas.
-
-Desde la interfaz principal aparece un botón flotante de reporte de incidencias. Al pulsarlo se abre una ventana tipo chat, implementada en `IncidentChat.js`, que guía al usuario paso a paso:
-
-- Selección de una reserva reciente o creación de una incidencia sin reserva asociada.
-- Selección de categoría de incidencia.
-- Selección del tipo concreto de problema.
-- Introducción de una descripción breve.
-- Confirmación del resumen antes de enviarla.
-- Opción de contactar con un operario mediante un enlace telefónico.
-- Posibilidad de registrar otra incidencia al finalizar el flujo.
-
-Las categorías disponibles son:
-
-| Categoría | Uso |
-|---|---|
-| `RESERVA` | Problemas al iniciar, finalizar, modificar o localizar una reserva. |
-| `COCHE` | Problemas físicos o funcionales del vehículo. |
-| `ACCIDENTE_EMERGENCIA` | Accidentes, averías durante el trayecto o situaciones urgentes. |
-| `OBJETO_PERDIDO` | Objetos perdidos, encontrados o pendientes de recuperar. |
-| `OTRO` | Consultas generales o problemas no clasificados. |
-
-Cada incidencia queda asociada al usuario que la crea y, si procede, también a una reserva y a un coche. El backend valida que el tipo de incidencia pertenezca a la categoría seleccionada.
-
-### 16.2 Estados y prioridades de incidencias
-
-Las incidencias tienen un ciclo de estado propio:
-
-| Estado | Significado |
-|---|---|
-| `ABIERTA` | La incidencia acaba de registrarse. |
-| `EN_PROCESO` | La incidencia está siendo gestionada. |
-| `RESUELTA` | El problema se ha solucionado. |
-| `CERRADA` | La incidencia queda archivada o cerrada definitivamente. |
-
-También se calcula una prioridad automática según el tipo de problema:
-
-| Prioridad | Ejemplos |
-|---|---|
-| `URGENTE` | Accidente, coche robado, asistencia urgente, avería durante el trayecto o daños graves. |
-| `ALTA` | El coche no arranca, no abre, no cierra o no se puede iniciar/finalizar la reserva. |
-| `MEDIA` | Coche sucio, daños visibles, poca batería, ubicación incorrecta o reserva bloqueada. |
-| `BAJA` | Objetos perdidos, consultas generales u otros problemas no críticos. |
-
-La entidad `Incidencia` guarda descripción, categoría, tipo, estado, prioridad, fecha de creación y fecha de actualización.
-
-### 16.3 Historial de incidencias en el menú lateral
-
-El menú lateral se ha ampliado con un acordeón específico de incidencias. Desde este apartado el usuario puede consultar las incidencias que ha creado, incluyendo:
-
-- Categoría.
-- Tipo de incidencia.
-- Estado.
-- Matrícula del coche, si existe.
-- Descripción.
-- Prioridad.
-- Fecha de creación.
-
-Para ello, `MenuDrawer.js` ahora recibe también la lista de incidencias del usuario y reutiliza las tarjetas generadas desde `IncidentChat.js`.
-
-### 16.4 API REST de incidencias
-
-Se ha añadido `IncidenciaController.java` con nuevos endpoints REST:
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| `POST` | `/api/incidencias` | Crea una nueva incidencia. |
-| `GET` | `/api/incidencias` | Devuelve todas las incidencias. |
-| `GET` | `/api/incidencias/user/{userId}` | Devuelve las incidencias creadas por un usuario. |
-| `GET` | `/api/incidencias/{id}` | Devuelve el detalle de una incidencia. |
-| `PATCH` | `/api/incidencias/{id}/estado` | Actualiza el estado de una incidencia. |
-| `DELETE` | `/api/incidencias/{id}` | Elimina una incidencia. |
-
-El frontend encapsula estas llamadas en `incidenciaService.js`.
-
-### 16.5 Nuevas clases del backend para incidencias
-
-Para soportar esta funcionalidad se han añadido nuevos elementos al backend:
-
-| Archivo | Responsabilidad |
-|---|---|
-| `IncidenciaController.java` | Expone los endpoints REST de incidencias. |
-| `IncidenciaService.java` | Aplica la lógica de creación, consulta, actualización de estado, borrado y prioridad. |
-| `IncidenciaRepository.java` | Accede a las incidencias almacenadas en base de datos. |
-| `Incidencia.java` | Representa la entidad persistente de una incidencia. |
-| `CategoriaIncidencia.java` | Define las categorías principales. |
-| `TipoIncidencia.java` | Define los tipos concretos y su categoría asociada. |
-| `EstadoIncidencia.java` | Define los estados posibles de una incidencia. |
-| `PrioridadIncidencia.java` | Define los niveles de prioridad. |
-| `CreateIncidenciaRequest.java` | DTO para crear incidencias. |
-| `IncidenciaResponse.java` | DTO de respuesta con la información completa de una incidencia. |
-| `UpdateIncidenciaEstadoRequest.java` | DTO para cambiar el estado de una incidencia. |
-
-### 16.6 Valoración de reservas finalizadas
-
-Se ha incorporado un sistema de valoración de trayectos completados. Cuando una reserva se finaliza correctamente, el frontend puede mostrar un modal de valoración con una escala de 1 a 5 estrellas.
-
-La valoración se guarda en la reserva mediante el campo `satisfactionRating`. Solo se pueden valorar reservas en estado completado y el backend valida que la puntuación esté entre 1 y 5.
-
-El historial del menú lateral muestra la valoración de las reservas finalizadas. Si una reserva completada todavía no ha sido valorada, aparece como pendiente de valorar.
-
-El nuevo endpoint asociado es:
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| `PATCH` | `/api/reservations/{id}/rating` | Guarda la valoración de una reserva finalizada. |
-
-El frontend consume este endpoint desde `reservationService.js` mediante la función `rateReservation()`.
-
-### 16.7 Cambios de interfaz
-
-La interfaz web incorpora nuevas piezas visuales y de interacción:
-
-- Botón flotante para reportar incidencias desde la pantalla del mapa.
-- Ventana modal de incidencias con conversación guiada.
-- Tarjetas de incidencias dentro del menú lateral.
-- Acordeones en el menú para separar reservas e incidencias.
-- Modal de valoración de reservas finalizadas.
-- Estilos específicos para incidencias, tarjetas, botones de selección, ventana emergente y valoración por estrellas.
-
-Estas mejoras se apoyan principalmente en `index.html`, `styles.css`, `MapScreen.js`, `MenuDrawer.js`, `IncidentChat.js`, `incidenciaService.js` y `reservationService.js`.
-
-### 16.8 Cambios de base de datos y despliegue
-
-También se han añadido ajustes relacionados con persistencia y despliegue:
-
-- Nueva tabla `incidencias`, gestionada por JPA a partir de la entidad `Incidencia`.
-- Campo `satisfactionRating` en reservas para almacenar la valoración del usuario.
-- Configuración de zona horaria `Europe/Madrid` para Jackson y Hibernate.
-- Configuración del puerto mediante `PORT`, útil para despliegues externos.
-- Ajustes de HikariCP para limitar conexiones en entornos con base de datos remota.
-- Migración `V2__allow_expired_reservation_status.sql` para permitir el estado `EXPIRED` en reservas.
-- `DatabaseMigrationConfig.java` aplica ajustes de compatibilidad sobre la tabla de reservas al arrancar.
-- `Dockerfile` multi-stage para compilar con Maven y ejecutar la aplicación con Java 21.
-
-### 16.9 Flujo actualizado de uso
-
-Con estas novedades, el flujo completo de la aplicación queda ampliado:
-
-1. El usuario crea, comparte, inicia y finaliza una reserva como antes.
-2. Al finalizar el trayecto, puede valorar la experiencia con una puntuación de 1 a 5.
-3. Si durante el uso aparece un problema, puede abrir el botón de incidencias.
-4. El chat de incidencias le permite asociar el problema a una reserva reciente o comunicarlo sin reserva.
-5. La incidencia queda guardada con estado, prioridad y trazabilidad temporal.
-6. El usuario puede revisar posteriormente sus reservas e incidencias desde el menú lateral.
-
-## 17. Batería
-### 17.1 Carga automática de coches en oficina
-
-Se ha añadido una lógica de batería y carga automática asociada al ciclo de los trayectos.
-
-Cuando una reserva finaliza, el backend mueve el coche a las coordenadas del destino y descuenta batería en función de la distancia recorrida. El cálculo usa una estimación de kilómetros por porcentaje de batería y mantiene un mínimo de seguridad para evitar que el coche quede por debajo del umbral definido.
-
-Si el trayecto finalizado es de tipo `IDA`, es decir, termina en una oficina corporativa, el coche queda marcado como `cargando`. A partir de ese momento, una tarea programada del backend incrementa la batería de los coches en carga hasta llegar al 100%.
-
-La carga funciona así:
-
-- Al crear una reserva, el coche deja de estar en carga.
-- Al iniciar un trayecto, el coche pasa a `EN_USO` y tampoco aparece como cargando.
-- Al finalizar una reserva de ida, el coche queda libre, se coloca en la oficina destino y se marca como cargando.
-- Cada 10 segundos, `CarService` suma un 1% de batería a los coches con `cargando = true`.
-- Cuando un coche alcanza el 100%, deja de aparecer como cargando.
-- El frontend muestra el estado de carga con un indicador visual junto al porcentaje de batería y el texto `Cargando en oficina · +1% cada 10 s`.
-
-Esta información viaja al frontend mediante el campo `cargando` de `CarMapResponse`, por lo que el mapa y la ficha inferior del coche pueden mostrar si el vehículo está cargando.
-
-
-## 18. Limitaciones y posibles mejoras
+## 17. Limitaciones y posibles mejoras
 
 El proyecto funciona como MVP académico, pero podrían incorporarse mejoras para una versión de producción:
 
@@ -1018,13 +1033,12 @@ El proyecto funciona como MVP académico, pero podrían incorporarse mejoras par
 - Despliegue en una plataforma pública con variables de entorno seguras.
 - Tests unitarios y de integración.
 - Mejor control de concurrencia cuando varios usuarios intentan reservar o unirse al mismo coche a la vez.
-- Gestión de mantenimiento, carga de batería y disponibilidad real de flota.
+- Gestión de mantenimiento y disponibilidad real de flota.
 
 ---
 
-## 19. Conclusión
+## 18. Conclusión
 
 Corporate Ride es una aplicación web fullstack que integra frontend, backend y base de datos para resolver un caso realista de movilidad corporativa compartida. El sistema permite registrar usuarios por empresa, visualizar coches en un mapa, crear reservas, compartir trayectos, gestionar ocupantes, controlar estados de vehículos y asignar puntos responsables al completar viajes compartidos.
 
 El proyecto destaca por combinar una interfaz visual basada en mapa con una API REST estructurada y una lógica de negocio que controla restricciones importantes como empresa del usuario, plazas disponibles, límites de reserva, caducidad automática y asignación de puntos. De esta forma, Corporate Ride no se limita a mostrar coches, sino que gestiona el ciclo completo de una reserva corporativa desde su creación hasta su finalización.
-
