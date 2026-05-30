@@ -603,13 +603,13 @@ El modelo principal se compone de empresas, usuarios, oficinas, coches, reservas
 
 ```mermaid
 erDiagram
-    COMPANY ||--o{ USER : tiene
+    COMPANY ||--o{ APP_USER : tiene
     COMPANY ||--o{ OFFICE : tiene
     COMPANY ||--o{ RESERVATION : agrupa
     CAR ||--o{ RESERVATION : se_reserva
-    USER ||--o{ RESERVATION : crea
+    APP_USER ||--o{ RESERVATION : crea
     RESERVATION ||--o{ RESERVATION_PARTICIPANT : registra
-    USER ||--o{ RESERVATION_PARTICIPANT : participa
+    APP_USER ||--o{ RESERVATION_PARTICIPANT : participa
     OFFICE ||--o{ RESERVATION : destino_ida
 ```
 
